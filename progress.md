@@ -2,7 +2,7 @@
 
 ## START HERE
 Read this file, then CLAUDE.md, then `docs/rules-check.md` and `docs/ideas.md`. Code map: `js/roles.js` (72 roles, counts, night order), `js/solver.js` (line-up enumerator → Demon/evil odds), `js/engine.js` (Trouble Brewing rules + computer Storyteller), `js/bots.js` (computer players), `js/ctonline.js` (game object for the shared online layer), `js/app.js` (all UI), `js/art.js` (icons), `js/worker.js` (solver off the main thread).
-Last updated: 2026-10-19 (first build, phase 1 + phase 2).
+Last updated: 2026-10-20 (first build, phase 1 + phase 2, QA fixes).
 
 ## Goal right now
 Tim: "could you also explore blood on the clocktower?" Phase 2: "build regular play online with a computer or other online players for all the games … that match exactly the play of the in-person game … Really work on the webdesign … art … make sure that everything works properlly without errors … get everything right like rules … specific numbers."
@@ -34,6 +34,8 @@ Tim: "could you also explore blood on the clocktower?" Phase 2: "build regular p
 - `.view` must not animate (phone-view screenshots caught a blank frame, and Tim's rule is "nothing jumps").
 - The Play view updates its parts (`#pCard`, `#pRing`, `#pAct`, `#feed`) separately, so a tap isn't lost to a re-render. Keep that.
 - Time encoding: night k = 2k−1, day k = 2k.
+- The engine's `who()` helper fixes verbs for the seat named "You" ("You nominate"). Use it for any new log line that starts with a name.
+- The odds badge sits on the token's right side (`.tok .badge`). Corners covered the role/name labels; check overlaps with `scratchpad/ct/fix/overlap.mjs`-style measuring.
 
 ## Decisions
 - The computer is always the Storyteller in Play. Made-up info for Drunk/poisoned players is random but believable.
@@ -45,6 +47,7 @@ Tim: "could you also explore blood on the clocktower?" Phase 2: "build regular p
 - On a real iPhone (only WebKit at 393 px). Solver time on an iPhone at 12+ players.
 - BMR/S&V wording of abilities against the official almanac (order checked, text is ours).
 - Online with 3+ people, host dropping mid-game, rejoin by name.
+- Smoothness on a real iPhone. Headless WebKit showed ~300 ms frame gaps during computer turns, Chromium none; no app code ran over 100 ms on the main thread.
 
 ## Rejected / parked
 - ~~Computer play for BMR/S&V~~: too large for now (see docs/ideas.md).

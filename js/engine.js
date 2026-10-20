@@ -77,6 +77,8 @@
 
   // ------------------------------------------------------------------ helpers
   function log(s, text, extra) { s.pub.push(Object.assign({ t: s.t, text }, extra || {})); }
+  // "Ben nominates" / "You nominate": the player's own seat may be named "You"
+  function who(s, i, he, you) { return s.names[i] + ' ' + (s.names[i] === 'You' ? you : he); }
   function msg(s, seat, kind, text, data) { s.priv[seat].push({ t: s.t, kind, text, data: data || null }); }
   const aliveCount = s => s.alive.filter(Boolean).length;
   const seatsWith = (s, role) => s.roles.map((r, i) => (r === role ? i : -1)).filter(i => i >= 0);
@@ -335,7 +337,7 @@
     if (s.day.vote) closeVote(s);
     const x = s.day.block;
     if (x >= 0) {
-      log(s, s.names[x] + ' is executed.', { kind: 'exec', seat: x });
+      log(s, who(s, x, 'is', 'are') + ' executed.', { kind: 'exec', seat: x });
       s.executedToday = x;
       if (s.roles[x] === 'saint' && sober(s, x)) { s.alive[x] = false; s.deaths.push({ seat: x, t: s.t, how: 'exec' }); return end(s, 'evil', 'The Saint was executed.'); }
       kill(s, x, 'exec');
@@ -376,7 +378,7 @@
         s.claims[seat] = { role: a.role, t: s.t };
         const info = (a.info || []).filter(x => x && x.kind);
         for (const x of info) s.shared.push(Object.assign({}, x, { giver: seat }));
-        log(s, s.names[seat] + ' says they are the ' + nm(a.role) + '.' + (info.length ? ' ' + info.map(x => describe(s, x)).join(' ') : ''), { kind: 'claim', seat, role: a.role, info });
+        log(s, who(s, seat, 'says they are', 'say you are') + ' the ' + nm(a.role) + '.' + (info.length ? ' ' + info.map(x => describe(s, x)).join(' ') : ''), { kind: 'claim', seat, role: a.role, info });
         break;
       }
       case 'share': {
@@ -396,12 +398,12 @@
         if (x < 0 || x >= s.n) return err('Pick a player.');
         if (d.nominees.includes(x)) return err(s.names[x] + ' was already nominated today.');
         d.nominators.push(seat); d.nominees.push(x);
-        log(s, s.names[seat] + ' nominates ' + s.names[x] + '.', { kind: 'nom', by: seat, on: x });
+        log(s, who(s, seat, 'nominates', 'nominate') + ' ' + s.names[x] + '.', { kind: 'nom', by: seat, on: x });
         if (s.roles[x] === 'virgin' && !s.virginUsed) {
           s.virginUsed = true;
           const tf = typeOf(s.roles[seat]) === 'T' || (s.roles[seat] === 'spy' && rnd(s) < 0.5);
           if (sober(s, x) && tf) {
-            log(s, s.names[seat] + ' is executed at once!', { kind: 'exec', seat, virgin: true });
+            log(s, who(s, seat, 'is', 'are') + ' executed at once!', { kind: 'exec', seat, virgin: true });
             s.executedToday = seat;
             kill(s, seat, 'exec');
             if (s.winner) return s;
@@ -426,11 +428,11 @@
         if (s.stage !== 'day') return err('Only by day.');
         if (!s.alive[seat]) return err('Dead players can\'t.');
         const x = a.target | 0;
-        log(s, s.names[seat] + ' tries to slay ' + s.names[x] + '.', { kind: 'slay', by: seat, on: x });
+        log(s, who(s, seat, 'tries', 'try') + ' to slay ' + s.names[x] + '.', { kind: 'slay', by: seat, on: x });
         const real = s.roles[seat] === 'slayer' && !s.slayerUsed;
         if (s.roles[seat] === 'slayer' || s.thinks[seat] === 'slayer') s.slayerUsed = s.slayerUsed || s.roles[seat] === 'slayer';
         const hit = real && sober(s, seat) && s.alive[x] && (s.roles[x] === 'imp' || (s.roles[x] === 'recluse' && rnd(s) < 0.5));
-        if (hit) { log(s, s.names[x] + ' dies!', { kind: 'slaydeath', seat: x }); kill(s, x, 'slayer'); }
+        if (hit) { log(s, who(s, x, 'dies', 'die') + '!', { kind: 'slaydeath', seat: x }); kill(s, x, 'slayer'); }
         else log(s, 'Nothing happens.', { kind: 'slaymiss' });
         break;
       }

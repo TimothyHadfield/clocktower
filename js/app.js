@@ -39,7 +39,7 @@
 
   // ------------------------------------------------------------------ solver worker
   let worker = null;
-  try { worker = new Worker('js/worker.js?v=3'); } catch (e) { worker = null; }
+  try { worker = new Worker('js/worker.js?v=4'); } catch (e) { worker = null; }
   const pending = {};
   let seq = 0;
   function runSolve(tag, input, cb) {
@@ -132,6 +132,8 @@
     if (!odds || odds.error) return -1;
     let b = -1, bv = -1;
     for (let i = 0; i < n; i++) if ((!alive || alive[i]) && odds.pDemon[i] > bv) { bv = odds.pDemon[i]; b = i; }
+    // a tie at the top means nobody stands out: name no suspect
+    for (let i = 0; i < n; i++) if (i !== b && (!alive || alive[i]) && Math.abs(odds.pDemon[i] - bv) < 1e-9) return -1;
     return b;
   }
   function nbDead(nb) { const d = Array(nb.n).fill(null); for (const x of nb.deaths) if (!d[x.seat]) d[x.seat] = x; return d; }
@@ -162,7 +164,7 @@
       center = '<div class="lbl">The Demon was</div><div class="big c-D">' + esc(nb.names[d]) + '</div><div class="sub">Odds had them at ' + pct(P.oddsAtReveal != null ? P.oddsAtReveal : 0) + '</div>';
     } else if (!odds || (nbBusy && !odds)) center = '<div class="lbl">Thinking</div><div class="dots"><i></i><i></i><i></i></div>';
     else if (odds.error) center = '<div class="lbl c-D">Nothing fits</div><div class="sub">' + esc(odds.error) + '</div>';
-    else center = '<button data-act="tab" data-tab="odds" style="width:100%"><div class="lbl">Demon?</div><div class="big">' + esc(nb.names[top]) + '</div><div class="pct" style="color:' + heat(odds.pDemon[top]) + '">' + pct(odds.pDemon[top]) + '</div><div class="sub">' + odds.lineups.toLocaleString() + ' line-ups fit</div></button>';
+    else center = '<button data-act="tab" data-tab="odds" style="width:100%"><div class="lbl">Demon?</div>' + (top >= 0 ? '<div class="big">' + esc(nb.names[top]) + '</div><div class="pct" style="color:' + heat(odds.pDemon[top]) + '">' + pct(odds.pDemon[top]) + '</div>' : '<div class="sub">No one stands out</div>') + '<div class="sub">' + odds.lineups.toLocaleString() + ' line-ups fit</div></button>';
 
     $('#headMid').innerHTML = '<div class="stepper"><button data-act="phase" data-d="-1" aria-label="Earlier">‹</button><span>' + phaseLabel(nb.t) + '</span><button data-act="phase" data-d="1" aria-label="Later">›</button></div>';
     const banner = P ? '<div class="banner"><span class="grow"><b>Practice</b> · ' + (P.revealed ? 'Roles revealed.' : 'Who is the Demon?') + '</span>' +
@@ -363,7 +365,7 @@
     if (over) center = '<div class="lbl">' + (g.winner === 'good' ? 'Good wins' : 'Evil wins') + '</div><div class="big ' + (g.winner === 'good' ? 'c-T' : 'c-D') + '">' + (g.winner === 'good' ? 'Good' : 'Evil') + '</div><div class="sub">' + esc(g.winReason) + '</div>';
     else if (g.stage === 'night') center = '<div class="lbl">' + phaseLabel(g.t) + '</div><div class="big" style="color:var(--warm)">' + (v.pending ? 'Your move' : 'Sleeping') + '</div>' + (v.pending ? '' : '<div class="dots"><i></i><i></i><i></i></div>');
     else if (g.day && g.day.vote) { const d = g.day.vote; const yes = Object.values(d.votes).filter(Boolean).length; center = '<div class="lbl">Vote</div><div class="big">' + esc(g.names[d.on]) + '</div><div class="sub">' + yes + ' yes · needs ' + v.threshold + '</div>'; }
-    else center = '<div class="lbl">' + phaseLabel(g.t) + '</div>' + (g.day.block >= 0 ? '<div class="sub">On the block</div><div class="big c-D">' + esc(g.names[g.day.block]) + '</div>' : (top >= 0 ? '<div class="sub">Demon?</div><div class="big">' + esc(g.names[top]) + '</div><div class="pct" style="color:' + heat(odds.pDemon[top]) + '">' + pct(odds.pDemon[top]) + '</div>' : '<div class="dots"><i></i><i></i><i></i></div>'));
+    else center = '<div class="lbl">' + phaseLabel(g.t) + '</div>' + (g.day.block >= 0 ? '<div class="sub">On the block</div><div class="big c-D">' + esc(g.names[g.day.block]) + '</div>' : (top >= 0 ? '<div class="sub">Demon?</div><div class="big">' + esc(g.names[top]) + '</div><div class="pct" style="color:' + heat(odds.pDemon[top]) + '">' + pct(odds.pDemon[top]) + '</div>' : odds ? '<div class="sub">No one stands out</div>' : '<div class="dots"><i></i><i></i><i></i></div>'));
 
     const r = ROLES[v.me.role];
     let team = '';
@@ -538,8 +540,10 @@
   }
   function stNightHTML() {
     const st = state.st;
-    const steps = nightOrder(st.chosen, st.first, st.n);
-    const who = id => (st.seats ? st.seats.map((s, i) => (s.role === id ? NAMES[i] && stName(i) : null)).filter(Boolean).join(', ') : '');
+    // The Drunk (and Lunatic) wake as the role they think they are, so add those roles to the order.
+    const thinks = st.seats ? st.seats.map(s => s.thinks).filter(Boolean) : [];
+    const steps = nightOrder(st.chosen.concat(thinks), st.first, st.n);
+    const who = id => (st.seats ? st.seats.map((s, i) => (s.role === id ? stName(i) : s.thinks === id ? stName(i) + ' (' + rname(s.role) + ')' : null)).filter(Boolean).join(', ') : '');
     let h = '<div class="row">' + seg('st-first', [['1', 'First night'], ['0', 'Other nights']], st.first ? '1' : '0') + '</div>';
     if (!st.chosen.length) return h + '<div class="muted small">Pick roles in Setup to see the night order.</div>';
     h += '<div class="list" style="gap:4px">' + steps.map((s, i) => '<div class="step"><span class="num">' + (i + 1) + '</span><span class="ic c-' + (s.marker ? 'M' : s.type) + '">' + icon(s.id) + '</span><div class="grow"><b>' + esc(s.name) + '</b>' + (who(s.id) ? ' <span class="tiny muted">' + esc(who(s.id)) + '</span>' : '') + '<div class="small muted">' + esc(s.text) + '</div></div></div>').join('') + '</div>';
@@ -551,7 +555,7 @@
     const st = state.st;
     if (!st.seats) return '<div class="muted small" style="padding:8px">Deal roles in Setup first.</div>';
     const tokens = st.seats.map((s, i) => ({
-      seat: i, type: rtype(s.role), ic: icon(s.role), name: stName(i), cl: rname(s.role) + (s.thinks ? ' → ' + rname(s.thinks) : ''),
+      seat: i, type: rtype(s.role), ic: icon(s.role), name: stName(i), cl: rname(s.role) + (s.thinks ? '\n→ ' + rname(s.thinks) : ''),
       cls: s.dead ? 'dead' : '', dead: s.dead, extra: (s.dead && !s.ghost ? '' : (s.dead ? '<span class="ghost"></span>' : '')) + (s.rem.length ? '<span class="reminders">' + s.rem.map(r => '<span class="rem">' + esc(r) + '</span>').join('') + '</span>' : ''),
     }));
     const center = '<div class="lbl">Bluffs</div><div class="small">' + st.bluffs.map(rname).join('<br>') + '</div>';

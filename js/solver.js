@@ -227,10 +227,11 @@
         const t = dd.t;
         let alive = 0;
         for (let s = 0; s < n; s++) if (deathT[s] >= t) alive++;
+        if (t === 1) continue; // the Demon can't die on the first night in Trouble Brewing
         const swOk = sw >= 0 && sw !== b.cur && deathT[sw] > t && alive >= 5 && !b.changes.some(c => c[1] === sw);
         if (swOk) { next.push({ cur: sw, changes: b.changes.concat([[t, sw]]), w: b.w }); continue; }
-        if (isNight(t)) {
-          // Imp killed itself: a living Minion catches the star
+        if (isNight(t) && t > 1) {
+          // Imp killed itself (the Imp doesn't act on the first night): a living Minion catches the star
           const cands = S.filter(s => s !== b.cur && deathT[s] > t && !b.changes.some(c => c[1] === s));
           for (const s of cands) next.push({ cur: s, changes: b.changes.concat([[t, s]]), w: b.w / cands.length });
         }

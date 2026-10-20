@@ -91,6 +91,14 @@ t('Drunk prior: 8 players, 1 Outsider slot, nobody claims an Outsider', () => {
   eq(r.pDrunk[0], 0, 'not me');
 });
 
+t('A death on night 1 can never be the Demon (the Imp does not act on the first night, so no star-pass)', () => {
+  const claims = ['chef', 'empath', 'washerwoman', 'investigator', 'librarian', 'monk', 'mayor'];
+  const r = solve({ n: 7, claims, me: 0, deaths: [{ seat: 3, t: 1, how: 'night' }], infos: [] });
+  // hand: Demon is one of the 5 living others; the Minion is any of the other 5 (3 roles, no Baron room): 5 x 5 x 3 = 75.
+  // Seat 3 is evil only as the Minion: 1/5. A living seat: 1/5 Demon + 4/5 x 1/5 Minion = 0.36.
+  eq(r.lineups, 75, 'lineups'); eq(r.pEvil[3], 0.2, 'seat3 evil'); eq(r.pEvil[1], 0.36, 'seat1 evil');
+});
+
 t('Speed: 15 players with info finishes in time (4 s idle; CT_SLOW=1 allows 15 s on a busy machine)', () => {
   const claims = ['chef', 'empath', 'washerwoman', 'investigator', 'librarian', 'monk', 'mayor', 'soldier', 'fortuneteller', 'undertaker', 'slayer', 'virgin', 'ravenkeeper', 'saint', 'butler'];
   const r = solve({ n: 15, claims, me: 0, deaths: [{ seat: 3, t: 2, how: 'exec' }, { seat: 7, t: 3, how: 'night' }], infos: [
