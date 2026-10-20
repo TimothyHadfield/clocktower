@@ -18,6 +18,25 @@
   - Night order and counts were compared with bra1n/townsquare data (0 differences).
 - **Open:** real-iPhone check, and 3+ person online games.
 
+## 2026-10-20: visual design pass (builder)
+- **Asked (Tim, via manager):** "review them again for design improvements especially visually".
+- **Built:**
+  - Text on the circle (names, claims, odds badges, centre) now scales with the circle.
+  - Team-tinted token rims, and clean dead seats.
+  - Night and day tint on the table; living seats glow when it's your pick.
+  - Claim labels have a backing pill (off at 11+ seats).
+  - Odds: thin bars with the number beside them, and row dividers.
+  - The disabled Confirm is readable.
+  - The log fades in at the top.
+  - The Play tab label is aligned.
+  - Phone Grimoire setup shows 4 tiles per row.
+  - Tighter steppers.
+- **Verified:**
+  - 11 states at 393 px and 1440 px, before and after: no overflow, no console errors.
+  - 12-seat Play at both widths.
+  - Tests: solver 12, engine 19, art 365, online 148.
+- **Open:** see NOT verified (glow motion, real iPhone).
+
 ## 2026-10-20: QA pass fixes
 - **Asked:** fix what the fresh QA agent found.
 - **Built:**
