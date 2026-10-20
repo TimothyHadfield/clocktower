@@ -4,7 +4,7 @@
 Read this file, then CLAUDE.md, then `docs/rules-check.md` and `docs/ideas.md`. Code map: `js/roles.js` (72 roles, counts, night order), `js/solver.js` (line-up enumerator → Demon/evil odds), `js/engine.js` (Trouble Brewing rules + computer Storyteller), `js/bots.js` (computer players), `js/ctonline.js` (game object for the shared online layer), `js/app.js` (all UI), `js/art.js` (icons), `js/worker.js` (solver off the main thread).
 Sounds/animations: `js/fx.js` (byte copy of `../_fx/fx.js`, never edit; re-copy), `js/ctfx.js` (game events → sounds/animations, pure `events(prev, cur)`).
 Table look: `css/table.css` + `js/table.js` (byte copies of `../_table/`, never edit; re-copy). The game's own table styling is in `styles.css` ("the seat circle" and "Play: your place at the table" sections).
-Last updated: 2026-10-20 (first build, phase 1 + phase 2, QA fixes, visual design pass, sounds + celebrations, real-table look).
+Last updated: 2026-10-20 (first build, phase 1 + phase 2, QA fixes, visual design pass, sounds + celebrations, real-table look, edge pass).
 
 ## Goal right now
 Tim: "could you also explore blood on the clocktower?" Phase 2: "build regular play online with a computer or other online players for all the games … that match exactly the play of the in-person game … Really work on the webdesign … art … make sure that everything works properlly without errors … get everything right like rules … specific numbers."
@@ -24,6 +24,15 @@ Tim: "could you also explore blood on the clocktower?" Phase 2: "build regular p
 | Optional sounds, win/lose celebration, small animations; "Sound & effects" in Settings | Done 10-20 (`tests/fx.test.js`) |
 | Real-table look: wood table, Town Square board with clock ticks, parchment life/character tokens (black side = dead, white vote token), your seat at the bottom, your character sheet in front of you, log as note paper, clock hand + raised hands in votes, Grimoire box with shrouds, round reminder tokens, bluff tokens, night sheet on paper | Done 10-20, shots in the manager's scratchpad `table/clocktower/` (before/, after/, real.md) |
 
+## Edge pass (weird scenarios, 2026-10-20)
+46 scenarios tested (list + evidence in the manager's scratchpad `edge/clocktower/scenarios.md`); 15 failed and are fixed:
+- Rules: a dead Saint or dead Virgin has no ability; the Poisoner's poison ends when the Poisoner dies; a Monk-protected Mayor isn't attacked, so nobody dies (no bounce).
+- Circle at 11+ seats: labels no longer overlap (12 seats on a phone: 14 overlaps → 0); a yes vote pops the voter's hand instead of a floating "Yes".
+- Back goes where you just were (help → sheet → tab → previous tab); Settings has "Quit this game" (with Undo) or "Leave room".
+- Monk can't pick themselves (message); computers pause in a background tab; two tabs stay in step; the game keeps going if the odds worker fails.
+- Online names: blank → "Seat N", "You" not allowed, duplicates get the seat number.
+Open: an online player who goes AFK still stalls the day (needs a timeout in shared online.js).
+
 ## Event → sound map (js/ctfx.js; all custom sounds are "Game sounds", soft and short)
 | Game event | Sound | Animation |
 |---|---|---|
@@ -31,7 +40,7 @@ Tim: "could you also explore blood on the clocktower?" Phase 2: "build regular p
 | Night falls (dusk) | bellNight (one deep bell toll) | centre pulses |
 | Dawn | bellDawn (two light chimes); then a knell per night death | dead token flashes red + shakes |
 | Nomination | gavel (wood knock) | nominee pops |
-| Each YES vote | hand (soft tick, pitch rises around the circle); NO votes are silent | "Yes" floats over the voter |
+| Each YES vote | hand (soft tick, pitch rises around the circle); NO votes are silent | the voter's raised hand pops (ctfx event `raise`; the old floating "Yes" covered the next seat at 12 players) |
 | Tally: on the block | lower gavel | nominee pops (else centre pops) |
 | Execution (incl. Virgin) | knell | token flashes red + shakes; Virgin = 'big' sparkle |
 | Claim / Share info | cardFlip / cardSlide (quiet) | speaker pops |
@@ -51,6 +60,7 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 - "Write each role's ability in your own words (no copied official text or art)."
 - "add opptional sounds you can add to the games that reflect what's happening in the game accurately as well as win celebrations, and other fun annimations to go along with everything. Just make sure everything is customizable in the settings so the user can play as preffered." (2026-10-20). Manager: keep Clocktower atmospheric, never loud.
 - "could you also make sure that each of the games also have a look to them so that the game (either board or card layout) looks almost identical to how the board or card layout looks like in real life ... It should look kind of like you're looking through a camera that is connected to a user's glasses that is playing in real life" (2026-10-20). Keep every helper (odds, log, prompts); original art only.
+- "I've noticed the games often have good user interfaces but could be improved especially when a scenario happens that the game might've not really thought about or whatnot. Could you focus on making each game perfect especially in scenarios that the game doesn't expect or are a little weird." (2026-10-20)
 - Phone-first dark look with the Hub tokens. No page scroll on main screens. Labels 1–3 words, with explanations behind a "?". $0.
 
 ## Traps
@@ -61,7 +71,9 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 - Time encoding: night k = 2k−1, day k = 2k.
 - The engine's `who()` helper fixes verbs for the seat named "You" ("You nominate"). Use it for any new log line that starts with a name.
 - Ring text (`.nm`, `.cl`, `.badge`, `.center *`) is sized in `cqw` of `.ring` with a px floor. Don't go back to fixed px: laptop text was unreadably small.
-- `ring()` adds `.crowd` at 11+ seats. That turns off the claim-label backing, which otherwise hides the next seat's name on a phone. At 12 seats on a phone, labels still overlap a little, as they did before.
+- `ring()` adds `.crowd` at 11+ seats: smaller tokens, and claim + name sit in one `.lb` column under the token, width-capped by `--lw` (set per seat count in `ring()`). Badge, hand, shroud and ghost move to the token's top corners in crowd mode. Measure with the manager's scratchpad `edge/clocktower/overlap.mjs` after any ring change (12 seats on a phone: 0 overlaps on 10-20).
+- Back button: every sheet (and help page over it) and every tab change is a history entry (`histPush`, `sheetDepth`, `skipPop`). Close sheets with `dismissSheet()`, not `closeSheet()`, or a dead history entry is left behind.
+- `tick()` waits while `document.hidden`; a `storage` listener adopts saves from another tab. If the solver worker fails, pending jobs re-run on the main thread (`pending[tag].input`).
 - `.tok` is positioned with `transform: translate(-50%,-50%)`: never FX.pop/shake the token itself (it would jump); ctfx animates its `.ic`. Same for `.center` (animate `.center .big`).
 - The Settings sheet is redrawn as HTML; `drawSheet()` re-mounts `FX.renderSettings` into `#fxSlot` each time. fx.js's switch is a `<label class="switch">`, styled to match via `.fx-set` rules at the end of styles.css.
 - Odds bar width is `calc((100% - 40px) * p)`, because the number sits in the bar's right 40px.
@@ -80,11 +92,12 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 ## NOT verified
 - On a real iPhone (only WebKit at 393 px). Solver time on an iPhone at 12+ players.
 - BMR/S&V wording of abilities against the official almanac (order checked, text is ours).
-- Online with 3+ people, host dropping mid-game, rejoin by name.
+- Online with 3+ people, host dropping mid-game, rejoin by name. An AFK online player stalls the day (not fixed: needs the shared layer).
+- Edge pass: 14-character names at 12–15 seats still touch a neighbour's odds badge slightly (1–3 spots); on iPhone SE width (320) and landscape the circle is so small that ~5–10 small touches remain.
 - The design pass's pick-glow animation was not seen moving: screenshots are stills. Also not checked on a real iPhone.
 - Sounds were never heard: headless WebKit on Windows has no Web Audio. The sound list is tested in node with a fake AudioContext; loudness/feel of the bells on a real phone is unchecked. Confetti ran slowly in headless WebKit (same frame-gap artefact).
 - Sounds in a real online game (only the shared view-diff path, tested locally).
-- Real-table look: not seen on a real iPhone; the token flip was measured (class added on deaths, 0 errors) but not watched moving. 12 seats on a phone: claim labels still overlap a little, as before. Clocktower has no game Speed setting, so the old `data-speed` clash didn't apply.
+- Real-table look: not seen on a real iPhone; the token flip was measured (class added on deaths, 0 errors) but not watched moving. Clocktower has no game Speed setting, so the old `data-speed` clash didn't apply.
 - Smoothness on a real iPhone. Headless WebKit showed ~300 ms frame gaps during computer turns, Chromium none; no app code ran over 100 ms on the main thread.
 
 ## Rejected / parked

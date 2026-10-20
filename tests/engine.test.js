@@ -191,6 +191,47 @@ t('the Drunk is told the role they think they are, and gets made-up info', () =>
   ok(s.priv[2].some(p => p.kind === 'info' && p.data.kind === 'washerwoman'), 'drunk got washerwoman info');
 });
 
+// ---- odd moments (edge pass, 2026-10-20)
+t('a dead Saint who is executed does not lose the game (the dead have no ability)', () => {
+  let s = E.createGame({ n: 7, roles: R7, seed: 5 });
+  s = run(s, [{ type: 'endDay', seat: -1 }, { type: 'choose', seat: 5, picks: [2] }, { type: 'choose', seat: 0, picks: [6] }]);
+  ok(!s.alive[6], 'saint died in the night'); eq(s.stage, 'day');
+  s = run(s, [{ type: 'nominate', seat: 2, target: 6 }]);
+  for (const i of [0, 1, 2]) s = run(s, [{ type: 'vote', seat: i, yes: true }]);
+  s = run(s, [{ type: 'endDay', seat: -1 }]);
+  eq(s.winner, null, 'game goes on'); eq(s.stage, 'night');
+});
+
+t('a dead Virgin does not execute a Townsfolk who nominates her', () => {
+  let s = E.createGame({ n: 7, roles: ['imp', 'baron', 'washerwoman', 'chef', 'empath', 'virgin', 'saint'], seed: 9 });
+  s = run(s, [{ type: 'endDay', seat: -1 }, { type: 'choose', seat: 0, picks: [5] }]);
+  ok(!s.alive[5], 'virgin died in the night');
+  s = run(s, [{ type: 'nominate', seat: 3, target: 5 }]);
+  ok(s.alive[3], 'chef lives'); ok(s.day && s.day.vote, 'a normal vote opens');
+});
+
+t('when the Poisoner dies, the poisoned player is sober again (Empath reads true)', () => {
+  const roles = ['imp', 'poisoner', 'empath', 'chef', 'monk', 'saint', 'washerwoman'];
+  for (let seed = 1; seed <= 20; seed++) {
+    let s = E.createGame({ n: 7, roles, seed });
+    s = run(s, [{ type: 'choose', seat: 1, picks: [6] }, { type: 'endDay', seat: -1 }]);
+    s = run(s, [{ type: 'choose', seat: 1, picks: [2] }, { type: 'choose', seat: 4, picks: [3] }, { type: 'choose', seat: 0, picks: [1] }]);
+    ok(!s.alive[1], 'poisoner died');
+    const e = s.priv[2].filter(p => p.kind === 'info' && p.data.kind === 'empath').pop().data;
+    // living neighbours of seat 2: seat 0 (Imp, past the dead Poisoner) and seat 3 (Chef)
+    eq(e.count, 1, 'seed ' + seed + ' empath');
+  }
+});
+
+t('a Mayor protected by the Monk is safe, and nobody else dies in their place', () => {
+  const roles = ['imp', 'baron', 'mayor', 'chef', 'monk', 'saint', 'washerwoman'];
+  for (let seed = 1; seed <= 20; seed++) {
+    let s = E.createGame({ n: 7, roles, seed });
+    s = run(s, [{ type: 'endDay', seat: -1 }, { type: 'choose', seat: 4, picks: [2] }, { type: 'choose', seat: 0, picks: [2] }]);
+    eq(s.alive.filter(Boolean).length, 7, 'seed ' + seed + ': nobody dies');
+  }
+});
+
 t('apply is pure (does not change the old state)', () => {
   const s = E.createGame({ n: 7, roles: R7, seed: 5 });
   const before = JSON.stringify(s);

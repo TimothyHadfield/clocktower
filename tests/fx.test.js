@@ -103,6 +103,12 @@ t('(a) the hand ticks: one per yes vote, none for no', () => {
   const ev = C.events(a, b);
   ok(ev.filter(e => e.s === 'hand').length === 2, 'two ticks, got ' + ev.map(e => e.s));
   ok(ev[1].o.pitch > ev[0].o.pitch, 'pitch rises around the circle');
+  // a floating "Yes" covered the next seat on a 12-seat phone circle: the voter's own hand pops instead
+  ok(ev.every(e => !e.a || e.a[0] !== 'float'), 'no floating text over the circle');
+  ok(ev.filter(e => e.a && e.a[0] === 'raise').map(e => e.a[1].seat).join() === '3,5', 'the yes voters\' hands pop');
+  const popped = [];
+  C.play(ev, { FX: Object.assign({}, FX, { pop: el => popped.push(el.id), floatText: () => popped.push('float') }), find: (t, kind) => ({ id: kind + t.seat }), later: fn => fn() });
+  ok(popped.join() === 'raise3,raise5', 'pops the hand element: ' + popped);
 });
 
 t('(a) a reload mid-game stays quiet; a dawn with a death tolls a knell', () => {

@@ -33,6 +33,7 @@
     if (t && t.seat != null) {
       const tok = document.querySelector('#pRing .tok[data-seat="' + t.seat + '"]');
       // the token itself is positioned with a transform, so scale/shake its icon instead
+      if (tok && kind === 'raise') return tok.querySelector('.hand');
       return tok && (kind === 'pop' || kind === 'shake') ? tok.querySelector('.ic') : tok;
     }
     if (t === 'card') return document.querySelector('#pCard .rolecard .ic');
@@ -87,12 +88,12 @@
 
   // ------------------------------------------------------------------ solver worker
   let worker = null;
-  try { worker = new Worker('js/worker.js?v=7'); } catch (e) { worker = null; }
+  try { worker = new Worker('js/worker.js?v=8'); } catch (e) { worker = null; }
   const pending = {};
   let seq = 0;
   function runSolve(tag, input, cb) {
     const id = ++seq;
-    pending[tag] = { id, cb };
+    pending[tag] = { id, cb, input };
     if (worker) worker.postMessage({ id, tag, input });
     else setTimeout(() => done({ id, tag, r: SV.solve(input) }), 0);
   }
@@ -104,7 +105,12 @@
   }
   if (worker) {
     worker.onmessage = e => done(e.data);
-    worker.onerror = () => { worker = null; Object.keys(pending).forEach(k => { const p = pending[k]; delete pending[k]; }); nbOddsKey = ''; requestNbOdds(); };
+    // the worker failed (didn't load, or crashed): finish every waiting job here instead, so a game
+    // that was waiting on odds keeps going
+    worker.onerror = () => {
+      worker = null;
+      Object.keys(pending).forEach(tag => { const p = pending[tag]; setTimeout(() => done({ id: p.id, tag, r: SV.solve(p.input) }), 0); });
+    };
   }
 
   // notebook odds
@@ -128,18 +134,21 @@
   function ring(o) {
     // o: { n, tokens:[{seat, cls, ic, type, name, cl, badge, extra}], center, me (seat drawn at the near edge), hand (seat the clock hand points at), box }
     const n = o.n;
-    const size = Math.min(15, 150 / n);
     // from your chair: your seat sits at the bottom, the others round the far side in seat order
     const deg = s => (o.me != null ? 90 + (360 * (s - o.me)) / n : -90 + (360 * s) / n);
-    let h = '<div class="ring ' + (o.cls || '') + (n >= 11 ? ' crowd' : '') + '" style="--ts:' + size + 'cqw">';
+    // 11+ seats: smaller tokens, and the claim + name stack under each token (like the name printed
+    // on a real token), so neighbours' labels never collide
+    const crowd = n >= 11;
+    const size = crowd ? Math.min(11.5, 128 / n) : Math.min(15, 150 / n);
+    let h = '<div class="ring ' + (o.cls || '') + (crowd ? ' crowd' : '') + '" style="--ts:' + size + 'cqw;--lw:' + (crowd ? (200 / n).toFixed(1) : 24) + 'cqw">';
     if (o.hand != null && o.hand >= 0) h += '<span class="clockhand" style="rotate:' + (deg(o.hand) + 90).toFixed(1) + 'deg">' + CLOCKHAND + '</span>';
     for (const t of o.tokens) {
       const a = deg(t.seat) * Math.PI / 180;
       const x = 50 + 39 * Math.cos(a), y = 50 + 37.5 * Math.sin(a);
+      const labels = (t.cl ? '<span class="cl">' + esc(t.cl) + '</span>' : '') + '<span class="nm">' + esc(t.name) + '</span>';
       h += '<button class="tok t-' + (t.type || 'x') + ' ' + (t.cls || '') + (t.type ? '' : ' empty') + '" style="left:' + x.toFixed(2) + '%;top:' + y.toFixed(2) + '%;width:' + size + 'cqw;height:' + size + 'cqw" data-act="' + o.act + '" data-seat="' + t.seat + '" aria-label="' + esc(t.name) + '">' +
         '<span class="ic">' + t.ic + '</span>' +
-        (t.cl ? '<span class="cl">' + esc(t.cl) + '</span>' : '') +
-        '<span class="nm">' + esc(t.name) + '</span>' +
+        (crowd ? '<span class="lb">' + labels + '</span>' : labels) +
         (t.badge ? '<span class="badge" style="background:' + t.badge.color + '">' + t.badge.text + '</span>' : '') +
         (t.dead ? '<span class="shroud">' + art.roleIcon('dead') + '</span>' : '') +
         (t.extra || '') + '</button>';
@@ -344,6 +353,9 @@
   function tick() {
     const P = state.play;
     if (ON) { scheduleTick(1500); return; }
+    // a tab in the background doesn't play on: the computers wait until you look again (and two
+    // open tabs don't both move the same game)
+    if (document.hidden) { scheduleTick(1000); return; }
     if (!P || P.g.winner) return;
     const ctx = { humans: new Set([P.me]), mem: P.mem, rng: Math.random, levels: P.levels, oddsFor };
     const before = P.g;
@@ -404,6 +416,8 @@
       return;
     }
     const P = SRC.ui, me = SRC.me, v = SRC.v, g = v;
+    // "tap a player to nominate / slay" ends when a vote opens, night falls or the game ends
+    if (P.mode && (g.winner || g.stage !== 'day' || (g.day && g.day.vote))) P.mode = null;
     $('#headMid').innerHTML = '<b>' + (g.winner ? 'Game over' : phaseLabel(g.t)) + '</b>';
     const over = !!g.winner;
     const odds = myOdds && !myOdds.error ? myOdds : null;
@@ -689,8 +703,17 @@
 
   // ------------------------------------------------------------------ sheets
   let sheet = null; // { title, body(), foot() }
-  function openSheet(s) { sheet = s; drawSheet(); }
+  // Back goes where you just were: each sheet (and each help page over it) is a history entry,
+  // and so is each tab change
+  let sheetDepth = 0, skipPop = 0;
+  function histPush(o) { try { history.pushState(o, ''); } catch (e) { /* ignore */ } }
+  function openSheet(s) { if (!sheet || s.prev) { histPush({ ct: 'sheet' }); sheetDepth++; } sheet = s; drawSheet(); }
   function closeSheet() { sheet = null; $('#sheetRoot').innerHTML = ''; }
+  // closed by a button, a tap outside or Escape: drop its history entries too
+  function dismissSheet() {
+    closeSheet();
+    if (sheetDepth > 0) { skipPop++; const d = sheetDepth; sheetDepth = 0; try { history.go(-d); } catch (e) { skipPop--; } }
+  }
   function drawSheet() {
     if (!sheet) return;
     const old = document.querySelector('.sh-body');
@@ -814,7 +837,7 @@
       if (F.ik === 'slayer' && x.died && !dead[x.seat]) nb.deaths.push({ id: id(), seat: x.seat, t: x.t, how: 'slayer', infoId: x.id });
       if (F.ik === 'virgin' && x.executed && !dead[x.seat]) nb.deaths.push({ id: id(), seat: x.seat, t: x.t, how: 'exec', infoId: x.id });
     }
-    closeSheet(); save(); render();
+    dismissSheet(); save(); render();
     toast('Saved.', () => { state.nb = JSON.parse(snap); save(); render(); });
   }
 
@@ -871,7 +894,11 @@
       title: 'Settings',
       body: () => {
         const nb = state.nb;
-        let h = '<h2 class="sec">Notebook</h2>';
+        let h = '';
+        // a game in progress can be left from here (it otherwise only ends at Game over)
+        if (ON && ON.snap && ON.snap.pub && !ON.snap.pub.winner) h += '<h2 class="sec">Play</h2><button class="btn danger" data-act="set-leave">Leave room</button>';
+        else if (!ON && state.play && !state.play.g.winner) h += '<h2 class="sec">Play</h2><button class="btn danger" data-act="play-quit">Quit this game</button>';
+        h += '<h2 class="sec">Notebook</h2>';
         h += '<div class="row"><span class="grow">Players</span><div class="stepper"><button data-act="nb-n" data-d="-1">−</button><span>' + nb.n + '</span><button data-act="nb-n" data-d="1">+</button></div></div>';
         h += fldDiv('You are', seatChips('me', nb.me));
         h += '<div class="row"><span class="grow">I might be the Drunk ' + helpBtn('drunk') + '</span>' + sw('nb-drunk', nb.meMayBeDrunk) + '</div>';
@@ -969,7 +996,7 @@
 
   // ------------------------------------------------------------------ events
   const H = {
-    tab(d) { state.tab = d.tab; save(); render(); },
+    tab(d) { if (d.tab !== state.tab) histPush({ ct: 'tab', tab: d.tab }); state.tab = d.tab; save(); render(); },
     townview(d) { state.townView = d.v; save(); render(); },
     phase(d) { state.nb.t = Math.max(1, state.nb.t + (+d.d)); save(); render(); },
     seat(d) { seatSheet(+d.seat); },
@@ -983,10 +1010,15 @@
       save(); render();
       toast('Deleted.', () => { state.nb = JSON.parse(snap); save(); render(); });
     },
-    'sheet-close'() { closeSheet(); },
-    'sheet-bg'(d, e) { if (e.target.classList.contains('sheet-wrap')) closeSheet(); },
+    'sheet-close'() { dismissSheet(); },
+    'sheet-bg'(d, e) { if (e.target.classList.contains('sheet-wrap')) dismissSheet(); },
     help(d) { showHelp(d.k); },
-    'help-back'() { const p = sheet && sheet.prev; if (p) { sheet = p; $('#sheetRoot').innerHTML = ''; drawSheet(); } else closeSheet(); },
+    'help-back'() {
+      const p = sheet && sheet.prev;
+      if (!p) { dismissSheet(); return; }
+      sheet = p; $('#sheetRoot').innerHTML = ''; drawSheet();
+      if (sheetDepth > 0) { sheetDepth--; skipPop++; try { history.back(); } catch (e) { skipPop--; } }
+    },
     undo() { const u = toast.undo; $('#toastRoot').innerHTML = ''; toast.undo = null; if (u) u(); },
     // form fields
     'f-set'(d) {
@@ -1019,18 +1051,18 @@
     's-me'() { state.nb.me = seatOpen; save(); drawSheet(); render(); },
     's-sure'(d) { state.nb.sure[seatOpen] = d.v || null; save(); drawSheet(); render(); },
     's-claim'(d) { const nb = state.nb; nb.claims[seatOpen] = nb.claims[seatOpen] === d.id ? null : d.id; save(); drawSheet(); render(); },
-    's-dead'() { const i = seatOpen; closeSheet(); openForm('death', { seat: i }); },
+    's-dead'() { const i = seatOpen; openForm('death', { seat: i }); },
     's-undead'() { const nb = state.nb, i = seatOpen; const snap = JSON.stringify(nb); nb.deaths = nb.deaths.filter(x => x.seat !== i); nb.noms.forEach(x => { if (x.on === i) x.exec = false; }); save(); drawSheet(); render(); toast('Death removed.', () => { state.nb = JSON.parse(snap); save(); render(); }); },
-    's-info'() { const i = seatOpen; closeSheet(); openForm('info', { giver: i }); },
+    's-info'() { const i = seatOpen; openForm('info', { giver: i }); },
     // settings
     'nb-n'(d) { const snap = JSON.stringify(state.nb); resizeNb(state.nb.n + (+d.d)); save(); drawSheet(); render(); if (+d.d < 0) toast('Players: ' + state.nb.n, () => { state.nb = JSON.parse(snap); save(); drawSheet(); render(); }); },
     'nb-drunk'() { state.nb.meMayBeDrunk = !state.nb.meMayBeDrunk; save(); drawSheet(); render(); },
-    'nb-new'() { const snap = JSON.stringify(state.nb); state.nb = defNb(state.nb.n); state.nb.names = JSON.parse(snap).names; state.practice = null; closeSheet(); save(); render(); toast('New notebook.', () => { state.nb = JSON.parse(snap); save(); render(); }); },
+    'nb-new'() { const snap = JSON.stringify(state.nb); state.nb = defNb(state.nb.n); state.nb.names = JSON.parse(snap).names; state.practice = null; dismissSheet(); save(); render(); toast('New notebook.', () => { state.nb = JSON.parse(snap); save(); render(); }); },
     practice(d) {
       const p = makePractice(d.lv);
       if (!p) { toast('Couldn\'t make a puzzle. Try again.'); return; }
       state.practice = { truth: p.truth, saved: state.practice ? state.practice.saved : state.nb, revealed: false, lv: p.lv };
-      state.nb = p.nb; state.tab = 'town'; closeSheet(); save(); render();
+      state.nb = p.nb; if (state.tab !== 'town') histPush({ ct: 'tab', tab: 'town' }); state.tab = 'town'; dismissSheet(); save(); render();
     },
     'practice-reveal'() { const P = state.practice; const d = P.truth.roles.indexOf('imp'); P.oddsAtReveal = nbOdds && !nbOdds.error ? nbOdds.pDemon[d] : 0; P.revealed = true; save(); render(); },
     'practice-exit'() { const P = state.practice; state.nb = P.saved || defNb(8); state.practice = null; save(); render(); },
@@ -1039,6 +1071,12 @@
     'ps-level'(d) { state.playSetup.level = d.v; save(); renderPlay(); },
     'play-start'() { startPlay(); },
     'play-new'() { state.play = null; clearTimeout(playTimer); save(); renderPlay(); },
+    'play-quit'() {
+      const old = state.play;
+      state.play = null; clearTimeout(playTimer); dismissSheet(); save(); render();
+      toast('Game ended.', () => { state.play = old; save(); render(); requestMine(); scheduleTick(400); });
+    },
+    'set-leave'() { dismissSheet(); H['on-leave'](); },
     'on-create'() { onCreate(); },
     'on-join'() { onJoin(); },
     'on-start'() { if (ON) ON.room.start().then(r => { if (r && !r.ok) toast(r.message || 'Could not start.'); }); },
@@ -1048,6 +1086,7 @@
       const S = src(); if (!S) return;
       const P = S.ui, i = +d.seat, g = S.v;
       if (g.stage === 'night' && g.pending && g.pending.seat === S.me) {
+        if (g.pending.notSelf && i === S.me) { toast('You can\'t pick yourself.'); return; }
         const k = P.sel.indexOf(i);
         if (k >= 0) P.sel.splice(k, 1); else { P.sel.push(i); if (P.sel.length > g.pending.picks) P.sel.shift(); }
         renderPlay(); return;
@@ -1075,7 +1114,7 @@
       const v = src().v;
       if (!F.role) return toast('Pick a role.');
       const info = F.share && F.role === v.me.role ? myUnshared(v) : [];
-      closeSheet(); myAct({ type: 'claim', role: F.role, info });
+      dismissSheet(); myAct({ type: 'claim', role: F.role, info });
     },
     // storyteller
     'st-view'(d) { state.st.view = d.v; save(); renderSt(); },
@@ -1118,9 +1157,31 @@
       const q = $('#rolesQ'); if (q) { q.focus(); try { q.setSelectionRange(pos, pos); } catch (er) { /* ignore */ } }
     }
   });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && sheet) closeSheet(); });
-  // Back button closes an open sheet first
-  window.addEventListener('popstate', () => { if (sheet) closeSheet(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && sheet) dismissSheet(); });
+  // Back button: closes the open sheet (or its help page) first, else returns to the previous tab
+  window.addEventListener('popstate', e => {
+    if (skipPop) { skipPop--; return; }
+    if (sheet) {
+      sheetDepth = Math.max(0, sheetDepth - 1);
+      if (sheet.prev) { sheet = sheet.prev; $('#sheetRoot').innerHTML = ''; drawSheet(); } else closeSheet();
+      return;
+    }
+    const t = e.state && e.state.ct === 'tab' ? e.state.tab : null;
+    if (t && t !== state.tab) { state.tab = t; save(); render(); }
+  });
+  try { history.replaceState({ ct: 'tab', tab: state.tab }, ''); } catch (e) { /* ignore */ }
+  // another tab of this site saved: show the same notebook and game here
+  window.addEventListener('storage', e => {
+    if (e.key !== KEY || !e.newValue) return;
+    let s = null; try { s = JSON.parse(e.newValue); } catch (er) { return; }
+    if (!s || s.v !== 1 || !s.nb) return;
+    const tab = state.tab;
+    state = Object.assign(state, s, { tab });
+    myOddsKey = ''; nbOddsKey = '';
+    if (!sheet) render();
+    if (state.play && !state.play.g.winner) { requestMine(); scheduleTick(600); }
+  });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && state.play && !state.play.g.winner && !ON) scheduleTick(300); });
 
   render();
   if (state.play && !state.play.g.winner) { requestMine(); scheduleTick(500); }

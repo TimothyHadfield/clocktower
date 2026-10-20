@@ -71,6 +71,14 @@ ok(finished === games, 'all ' + games + ' adapter games finish (got ' + finished
   ok(threw2, 'ending the day at night throws');
 }
 
+// odd names: blank, "You", the same name twice
+{
+  const s = game.setup(6, {}, B.mkRng(3), [{ kind: 'human', name: 'Ann' }, { kind: 'human', name: 'you' }, { kind: 'human', name: 'Ann' }, { kind: 'human', name: '  ' }, { kind: 'computer' }, { kind: 'human', name: 'ann' }]);
+  ok(new Set(s.names.map(x => x.toLowerCase())).size === 6, 'every seat has its own name: ' + s.names);
+  ok(!s.names.some(x => /^you$/i.test(x)), 'nobody is called "You": ' + s.names);
+  ok(s.names[0] === 'Ann', 'the first Ann keeps her name');
+}
+
 // a real local room (online.js) with all computers plays to "finished"
 await new Promise((resolve) => {
   const room = createLocal({ game, seats: Array(6).fill('computer'), options: { level: 'easy' }, botDelayMs: 0, rng: B.mkRng(77) });

@@ -86,7 +86,8 @@
   // poisoned tonight / tomorrow, or the Drunk: abilities fail
   function sober(s, seat) {
     if (s.roles[seat] === 'drunk') return false;
-    if (s.poisoned === seat && (s.t === s.poisonedT || s.t === s.poisonedT + 1)) return false;
+    // the poison lasts until dusk of the next day, and ends at once if the Poisoner dies
+    if (s.poisoned === seat && (s.t === s.poisonedT || s.t === s.poisonedT + 1) && s.roles.some((r, i) => r === 'poisoner' && s.alive[i])) return false;
     return true;
   }
   // Storyteller choices about the Spy and Recluse: 50/50 each time
@@ -283,7 +284,8 @@
         msg(s, seat, 'done', 'You attacked ' + s.names[x] + '.');
         if (!ok || !s.alive[x]) break;
         if (x === seat) { s.killedTonight.push(x); kill(s, x, 'self'); break; }
-        if (s.roles[x] === 'mayor' && sober(s, x) && rnd(s) < 0.5) {
+        // a Mayor the Monk protects doesn't die, so nobody dies in their place
+        if (s.roles[x] === 'mayor' && sober(s, x) && x !== s.monk && rnd(s) < 0.5) {
           const alt = [...Array(s.n).keys()].filter(i => s.alive[i] && i !== x && i !== seat);
           if (alt.length) x = pick(s, alt);
         }
@@ -339,7 +341,7 @@
     if (x >= 0) {
       log(s, who(s, x, 'is', 'are') + ' executed.', { kind: 'exec', seat: x });
       s.executedToday = x;
-      if (s.roles[x] === 'saint' && sober(s, x)) { s.alive[x] = false; s.deaths.push({ seat: x, t: s.t, how: 'exec' }); return end(s, 'evil', 'The Saint was executed.'); }
+      if (s.roles[x] === 'saint' && s.alive[x] && sober(s, x)) { s.alive[x] = false; s.deaths.push({ seat: x, t: s.t, how: 'exec' }); return end(s, 'evil', 'The Saint was executed.'); }
       kill(s, x, 'exec');
     } else {
       log(s, 'Nobody is executed today.', { kind: 'noexec' });
@@ -399,7 +401,7 @@
         if (d.nominees.includes(x)) return err(s.names[x] + ' was already nominated today.');
         d.nominators.push(seat); d.nominees.push(x);
         log(s, who(s, seat, 'nominates', 'nominate') + ' ' + s.names[x] + '.', { kind: 'nom', by: seat, on: x });
-        if (s.roles[x] === 'virgin' && !s.virginUsed) {
+        if (s.roles[x] === 'virgin' && s.alive[x] && !s.virginUsed) {
           s.virginUsed = true;
           const tf = typeOf(s.roles[seat]) === 'T' || (s.roles[seat] === 'spy' && rnd(s) < 0.5);
           if (sober(s, x) && tf) {

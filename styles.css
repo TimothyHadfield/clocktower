@@ -135,8 +135,18 @@ h2.sec { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 
 .tok.dead::before { border-color: #8d8d96; opacity: .25; }
 .tok .shroud { position: absolute; bottom: -4px; left: -8px; width: 34%; height: 34%; min-width: 18px; min-height: 18px; color: #e9e3d4; filter: drop-shadow(0 1px 2px #000); }
 .tok.dead.me { box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), 0 0 0 3px rgba(240,179,84,.7), var(--edge-dark); }
-/* 11+ seats on a phone: label pills would hide the next seat's name, so use a text shadow instead */
-.ring.crowd .tok .cl { background: none; padding: 0; text-shadow: 0 1px 2px #000, 0 0 6px #000; }
+/* 11+ seats: the claim sits on the token's lower edge (like the name printed on a real token) and the
+   player's name right under it, so every label stays inside its own seat's slice of the circle */
+.ring.crowd { --clf: clamp(8.5px, 1.95cqw, 13px); --nmf: clamp(9.5px, 2.25cqw, 15px); }
+.ring.crowd .tok .lb { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: calc(var(--clf) * -.7); display: flex; flex-direction: column; align-items: center; pointer-events: none; z-index: 1; }
+.ring.crowd .tok .lb .cl, .ring.crowd .tok .lb .nm { position: static; transform: none; margin: 0; max-width: var(--lw); }
+.ring.crowd .tok .lb .cl { max-width: calc(var(--lw) * 1.3); }
+.ring.crowd .tok .cl { font-size: var(--clf); line-height: 1.12; padding: 0 3px; border-radius: 5px; background: rgba(20,12,6,.85); }
+.ring.crowd .tok .nm { font-size: var(--nmf); line-height: 1.12; }
+.ring.crowd .tok .badge { top: 12%; left: calc(100% - 13px); padding: 0 .3em; font-size: clamp(9px, 1.85cqw, 13px); }
+.ring.crowd .tok .hand { top: -10%; right: auto; left: -14%; width: 44%; min-width: 13px; }
+.ring.crowd .tok .shroud { bottom: auto; top: -6px; }
+.ring.crowd .tok .ghost { bottom: auto; top: -4px; }
 /* when you must pick a player, the living seats glow to say "tap me" */
 .ring.picking .tok:not(.dead):not(.sel):not(.me) { animation: pickme 1.6s ease-in-out infinite; }
 @keyframes pickme { 0%, 100% { box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 0 0 0 rgba(110,168,254,0), var(--edge); } 50% { box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 0 0 4px rgba(110,168,254,.45), var(--edge); } }

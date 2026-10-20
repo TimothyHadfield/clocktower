@@ -56,14 +56,15 @@
     }
     const fresh = cur.pub.slice(prev.pubLen);
     const burst = fresh.length > 6; // came back from another tab: only the ending matters
-    // votes: one hand-raise tick per yes, rising in pitch around the circle
+    // votes: one hand-raise tick per yes, rising in pitch around the circle. The voter's own raised
+    // hand pops up (a floating word would cover the neighbouring seats on a crowded circle)
     if (!burst && cur.vote) {
       const same = prev.vote && prev.vote.on === cur.vote.on && prev.vote.by === cur.vote.by;
       const before = same ? prev.vote.votes : {};
       let yes = Object.values(before).filter(Boolean).length;
       for (const k of Object.keys(cur.vote.votes)) {
         if (k in before) continue;
-        if (cur.vote.votes[k]) { yes++; add({ s: 'hand', o: { pitch: 1 + 0.05 * (yes - 1) }, a: ['float', { seat: +k }, 'Yes'] }, 90); }
+        if (cur.vote.votes[k]) { yes++; add({ s: 'hand', o: { pitch: 1 + 0.05 * (yes - 1) }, a: ['raise', { seat: +k }] }, 90); }
       }
     }
     for (const x of fresh) {
@@ -133,6 +134,7 @@
     if (!el) return;
     if (kind === 'pop') FX.pop(el);
     else if (kind === 'pulse') FX.pulse(el);
+    else if (kind === 'raise') FX.pop(el);
     else if (kind === 'float') FX.floatText(el, arg, 'var(--warm)');
     else if (kind === 'death') { FX.flash(el, 'var(--dem)'); FX.shake(env.find(target, 'shake') || el); }
   }

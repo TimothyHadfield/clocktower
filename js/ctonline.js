@@ -27,7 +27,15 @@
     id: 'clocktower',
     minSeats: 5, maxSeats: 12,
     setup(n, options, rng, seats) {
-      const names = seats.map((x, i) => (x && x.name) || ('Seat ' + (i + 1)));
+      // names must tell players apart in the log: a blank name gets the seat number, a repeated name
+      // gets its seat number added, and nobody may be called "You" (the log would say "You nominate")
+      const names = [];
+      seats.forEach((x, i) => {
+        let nm = String((x && x.name) || '').trim();
+        if (!nm || /^you$/i.test(nm)) nm = 'Seat ' + (i + 1);
+        if (names.some(y => y.toLowerCase() === nm.toLowerCase())) nm = nm.slice(0, 11) + ' ' + (i + 1);
+        names.push(nm);
+      });
       const s = E.createGame({ n, names, kinds: seats.map(x => (x.kind === 'computer' ? 'bot' : 'online')), seed: Math.floor(rng() * 2147483647) });
       s.done = Array(n).fill(false);
       s.level = (options && options.level) || 'hard';

@@ -34,6 +34,9 @@ Status: **OK** = matches two sources. **1-src** = one source only. **NV** = not 
 | Fortune Teller red herring (one good player reads "yes") | engine + solver | FT page | `Red herring` reminder | OK |
 | Poisoner: poisoned until dusk of the next day | engine `poisonedT` | Poisoner page | ability text | OK |
 | Role counts per script: TB 13/4/4/1, BMR 13/4/4/4, S&V 13/4/4/4 | `roles.js`; `tests/art.test.js` | script pages | edition/team of all 72 ids match | OK |
+| Dead players have no ability: a dead Saint executed does not lose the game, a dead Virgin nominated does not execute the nominator (edge pass 2026-10-20) | engine `alive[x]` checks; `tests/engine.test.js` | wiki "Rules Explanation": "Dead players lose their ability"; Saint and Virgin pages | (C) | OK |
+| The Poisoner's poison ends when the Poisoner dies (edge pass) | engine `sober()` needs a living Poisoner | wiki Poisoner page: "If the Poisoner dies… the poisoned player is no longer poisoned" (paraphrase) | (C) | OK |
+| A Monk-protected Mayor is not attacked, so the kill doesn't bounce: nobody dies (edge pass) | engine Mayor bounce skips `s.monk` | wiki Monk page ("the Demon's ability has no effect") + Mayor page | (C) | OK |
 
 ## Things simplified on purpose (computer Storyteller)
 - The computer Storyteller chooses wrong info for Drunk or poisoned players at random, but keeps it believable (e.g. a Chef count never higher than the number of evil players could make). A human Storyteller would steer the game, which the app doesn't try to do.
