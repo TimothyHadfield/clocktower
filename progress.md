@@ -3,7 +3,8 @@
 ## START HERE
 Read this file, then CLAUDE.md, then `docs/rules-check.md` and `docs/ideas.md`. Code map: `js/roles.js` (72 roles, counts, night order), `js/solver.js` (line-up enumerator → Demon/evil odds), `js/engine.js` (Trouble Brewing rules + computer Storyteller), `js/bots.js` (computer players), `js/ctonline.js` (game object for the shared online layer), `js/app.js` (all UI), `js/art.js` (icons), `js/worker.js` (solver off the main thread).
 Sounds/animations: `js/fx.js` (byte copy of `../_fx/fx.js`, never edit; re-copy), `js/ctfx.js` (game events → sounds/animations, pure `events(prev, cur)`).
-Last updated: 2026-10-20 (first build, phase 1 + phase 2, QA fixes, visual design pass, sounds + celebrations).
+Table look: `css/table.css` + `js/table.js` (byte copies of `../_table/`, never edit; re-copy). The game's own table styling is in `styles.css` ("the seat circle" and "Play: your place at the table" sections).
+Last updated: 2026-10-20 (first build, phase 1 + phase 2, QA fixes, visual design pass, sounds + celebrations, real-table look).
 
 ## Goal right now
 Tim: "could you also explore blood on the clocktower?" Phase 2: "build regular play online with a computer or other online players for all the games … that match exactly the play of the in-person game … Really work on the webdesign … art … make sure that everything works properlly without errors … get everything right like rules … specific numbers."
@@ -21,6 +22,7 @@ Tim: "could you also explore blood on the clocktower?" Phase 2: "build regular p
 | docs/rules-check.md, docs/ideas.md | Done |
 | Visual design pass (circle text scales, night/day tint, pick glow, odds bars) | Done 10-20, before/after shots in the manager's scratchpad `design/clocktower/` |
 | Optional sounds, win/lose celebration, small animations; "Sound & effects" in Settings | Done 10-20 (`tests/fx.test.js`) |
+| Real-table look: wood table, Town Square board with clock ticks, parchment life/character tokens (black side = dead, white vote token), your seat at the bottom, your character sheet in front of you, log as note paper, clock hand + raised hands in votes, Grimoire box with shrouds, round reminder tokens, bluff tokens, night sheet on paper | Done 10-20, shots in the manager's scratchpad `table/clocktower/` (before/, after/, real.md) |
 
 ## Event → sound map (js/ctfx.js; all custom sounds are "Game sounds", soft and short)
 | Game event | Sound | Animation |
@@ -48,6 +50,7 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 ## Standing instructions (Tim's words, via the manager)
 - "Write each role's ability in your own words (no copied official text or art)."
 - "add opptional sounds you can add to the games that reflect what's happening in the game accurately as well as win celebrations, and other fun annimations to go along with everything. Just make sure everything is customizable in the settings so the user can play as preffered." (2026-10-20). Manager: keep Clocktower atmospheric, never loud.
+- "could you also make sure that each of the games also have a look to them so that the game (either board or card layout) looks almost identical to how the board or card layout looks like in real life ... It should look kind of like you're looking through a camera that is connected to a user's glasses that is playing in real life" (2026-10-20). Keep every helper (odds, log, prompts); original art only.
 - Phone-first dark look with the Hub tokens. No page scroll on main screens. Labels 1–3 words, with explanations behind a "?". $0.
 
 ## Traps
@@ -62,6 +65,10 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 - `.tok` is positioned with `transform: translate(-50%,-50%)`: never FX.pop/shake the token itself (it would jump); ctfx animates its `.ic`. Same for `.center` (animate `.center .big`).
 - The Settings sheet is redrawn as HTML; `drawSheet()` re-mounts `FX.renderSettings` into `#fxSlot` each time. fx.js's switch is a `<label class="switch">`, styled to match via `.fx-set` rules at the end of styles.css.
 - Odds bar width is `calc((100% - 40px) * p)`, because the number sits in the bar's right 40px.
+- `ring()` takes `me` (that seat is drawn at the bottom, order stays clockwise), `hand` (clock hand target) and `box` (surface class). Grimoire reminders are `t.rems`, drawn in the ring just inside the token (not inside the button). Don't go back to seat 0 at the top in Play/Town.
+- Token look uses CSS vars `--parch*`, `--ink-T/O/M/D`, `--edge` (cardboard edge + shadow). Any box-shadow on `.tok` must end with `var(--edge)` or the token goes flat.
+- A death flips the life token (`.tok.flipping`), and the new-game deal turns your character token (`#pCard .ctok`), timed off the ctfx event list in `fxDrive`. Both use `TABLE.animOn()` (respects Animations off / reduced motion).
+- `#v-play` is the table (`tbl-surface tbl-wood-dark`, `.is-night` at night). `#pCard` now sits under the circle inside `.ringcol` (your seat side); `#pRing` is `display:contents`.
 - The odds badge sits on the token's right side (`.tok .badge`). Corners covered the role/name labels; check overlaps with `scratchpad/ct/fix/overlap.mjs`-style measuring.
 
 ## Decisions
@@ -77,6 +84,7 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 - The design pass's pick-glow animation was not seen moving: screenshots are stills. Also not checked on a real iPhone.
 - Sounds were never heard: headless WebKit on Windows has no Web Audio. The sound list is tested in node with a fake AudioContext; loudness/feel of the bells on a real phone is unchecked. Confetti ran slowly in headless WebKit (same frame-gap artefact).
 - Sounds in a real online game (only the shared view-diff path, tested locally).
+- Real-table look: not seen on a real iPhone; the token flip was measured (class added on deaths, 0 errors) but not watched moving. 12 seats on a phone: claim labels still overlap a little, as before. Clocktower has no game Speed setting, so the old `data-speed` clash didn't apply.
 - Smoothness on a real iPhone. Headless WebKit showed ~300 ms frame gaps during computer turns, Chromium none; no app code ran over 100 ms on the main thread.
 
 ## Rejected / parked

@@ -46,6 +46,25 @@
     const list = cur ? CFX.events(fxPrev, cur) : [];
     fxPrev = cur;
     CFX.play(list, { FX: FXL, find: fxFind });
+    // physical touches, timed with the sounds: a life token turns over to its black side when its
+    // player dies, and your character token turns face up when the game is dealt
+    const T = window.TABLE;
+    if (!T || !T.animOn() || !list.length) return;
+    const k = FXL.settings && FXL.settings.animSpeed === 'fast' ? 0.55 : 1;
+    let at = 0;
+    for (const e of list) {
+      const a = e.a;
+      if (a && (a[0] === 'death' || (a[0] === 'pop' && a[1] === 'card' && e.s === 'cardDeal'))) {
+        setTimeout(() => {
+          const el = a[1] === 'card' ? document.querySelector('#pCard .ctok') : document.querySelector('#pRing .tok[data-seat="' + a[1].seat + '"]');
+          if (!el) return;
+          if (a[1] === 'card') { el.animate([{ transform: 'rotateY(180deg)' }, { transform: 'rotateY(0)' }], { duration: 550 * k, easing: 'cubic-bezier(.3,.7,.3,1)' }); return; }
+          el.classList.remove('flipping'); void el.offsetWidth; el.classList.add('flipping');
+          el.addEventListener('animationend', () => el.classList.remove('flipping'), { once: true });
+        }, Math.round(at * k));
+      }
+      at += e.gap || 0;
+    }
   }
   function fxError() {
     if (!FXL) return;
@@ -68,7 +87,7 @@
 
   // ------------------------------------------------------------------ solver worker
   let worker = null;
-  try { worker = new Worker('js/worker.js?v=6'); } catch (e) { worker = null; }
+  try { worker = new Worker('js/worker.js?v=7'); } catch (e) { worker = null; }
   const pending = {};
   let seq = 0;
   function runSolve(tag, input, cb) {
@@ -107,12 +126,15 @@
 
   // ------------------------------------------------------------------ rendering helpers
   function ring(o) {
-    // o: { n, tokens:[{seat, cls, ic, type, name, cl, badge, extra}], center }
+    // o: { n, tokens:[{seat, cls, ic, type, name, cl, badge, extra}], center, me (seat drawn at the near edge), hand (seat the clock hand points at), box }
     const n = o.n;
     const size = Math.min(15, 150 / n);
+    // from your chair: your seat sits at the bottom, the others round the far side in seat order
+    const deg = s => (o.me != null ? 90 + (360 * (s - o.me)) / n : -90 + (360 * s) / n);
     let h = '<div class="ring ' + (o.cls || '') + (n >= 11 ? ' crowd' : '') + '" style="--ts:' + size + 'cqw">';
+    if (o.hand != null && o.hand >= 0) h += '<span class="clockhand" style="rotate:' + (deg(o.hand) + 90).toFixed(1) + 'deg">' + CLOCKHAND + '</span>';
     for (const t of o.tokens) {
-      const a = (-90 + (360 * t.seat) / n) * Math.PI / 180;
+      const a = deg(t.seat) * Math.PI / 180;
       const x = 50 + 39 * Math.cos(a), y = 50 + 37.5 * Math.sin(a);
       h += '<button class="tok t-' + (t.type || 'x') + ' ' + (t.cls || '') + (t.type ? '' : ' empty') + '" style="left:' + x.toFixed(2) + '%;top:' + y.toFixed(2) + '%;width:' + size + 'cqw;height:' + size + 'cqw" data-act="' + o.act + '" data-seat="' + t.seat + '" aria-label="' + esc(t.name) + '">' +
         '<span class="ic">' + t.ic + '</span>' +
@@ -121,10 +143,19 @@
         (t.badge ? '<span class="badge" style="background:' + t.badge.color + '">' + t.badge.text + '</span>' : '') +
         (t.dead ? '<span class="shroud">' + art.roleIcon('dead') + '</span>' : '') +
         (t.extra || '') + '</button>';
+      // reminder tokens lie just inside the character token, towards the middle, as in a real Grimoire
+      if (t.rems) {
+        const c = Math.abs(Math.cos(a)), r = 27.5 - 8 * Math.abs(Math.sin(a)); // clear of the name under a top seat, of the token at the sides
+        h += '<span class="reminders' + (c > 0.5 ? ' col' : '') + '" style="left:' + (50 + r * Math.cos(a)).toFixed(2) + '%;top:' + (50 + r * Math.sin(a)).toFixed(2) + '%">' + t.rems + '</span>';
+      }
     }
     h += '<div class="center">' + (o.center || '') + '</div></div>';
-    return '<div class="ringbox">' + h + '</div>';
+    return '<div class="ringbox ' + (o.box || '') + '">' + h + '</div>';
   }
+  // drawn for this site: an ornate clock hand, and a raised hand for a yes vote
+  const CLOCKHAND = '<svg viewBox="0 0 20 100" preserveAspectRatio="none" aria-hidden="true"><path d="M10 0 L14 22 L11.5 26 L13 60 L10 100 L7 60 L8.5 26 L6 22 Z" fill="#d9b25f" stroke="#7a5a1c" stroke-width="1"/><circle cx="10" cy="22" r="3" fill="#7a5a1c"/></svg>';
+  const HAND = '<span class="hand" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.5 12.5V6.2a1.4 1.4 0 0 1 2.8 0v4.6V3.9a1.4 1.4 0 0 1 2.8 0v6.9V5a1.4 1.4 0 0 1 2.8 0v6.5-3.3a1.4 1.4 0 0 1 2.8 0V15c0 4-2.8 7-6.8 7-2.6 0-4.3-1.2-5.6-3.2L3.6 14a1.4 1.4 0 0 1 2.3-1.6z"/></svg></span>';
+  const ctok = id => '<span class="ctok t-' + rtype(id) + '"><span class="ic">' + icon(id) + '</span></span>';
   function seg(act, items, cur, extra) {
     return '<div class="seg ' + (extra || '') + '">' + items.map(([v, l]) => '<button data-act="' + act + '" data-v="' + v + '" class="' + (String(cur) === String(v) ? 'on' : '') + '">' + l + '</button>').join('') + '</div>';
   }
@@ -201,7 +232,7 @@
     $('#v-town').innerHTML = banner +
       '<div class="townbar phone-only-row">' + seg('townview', [['circle', 'Circle'], ['log', 'Log']], state.townView, 'phone-only') + '</div>' +
       '<div class="split show-' + state.townView + '">' +
-      '<div class="ringcol">' + ring({ n: nb.n, tokens, center, act: 'seat', cls: isNight(nb.t) ? 'night' : 'day' }) +
+      '<div class="ringcol">' + ring({ n: nb.n, tokens, center, act: 'seat', me: nb.me, box: 'tbl-surface tbl-wood-dark', cls: isNight(nb.t) ? 'night' : 'day' }) +
       '<div class="actions"><button class="btn" data-act="form" data-f="nom">' + plus() + 'Vote</button><button class="btn" data-act="form" data-f="death">' + plus() + 'Death</button><button class="btn" data-act="form" data-f="info">' + plus() + 'Info</button></div></div>' +
       '<div class="side nb-log"><div class="row"><h2 class="sec grow">Log</h2></div><div class="scroll grow" id="logScroll">' + logHTML(nb) + '</div></div>' +
       '</div>';
@@ -357,6 +388,7 @@
     if (ON && (!SRC || !SRC.online)) { fxPrev = null; renderLobby(); return; }
     if (!SRC) {
       fxPrev = null;
+      $('#v-play').classList.remove('is-night');
       const S = state.playSetup;
       $('#v-play').innerHTML = '<div class="scroll grow"><div class="panel" style="max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:14px">' +
         '<div class="row"><span style="width:44px;height:44px;color:var(--dem)">' + icon('imp') + '</span><div class="grow"><b style="font-size:18px">Trouble Brewing</b><div class="small muted">The computer is the Storyteller. Other seats are computers or friends online.</div></div></div>' +
@@ -387,7 +419,7 @@
         seat: i, type: shown ? rtype(shown) : '', ic: shown ? icon(shown) : art.tokenIcon('T').replace('currentColor', '#3a4260'),
         name: g.names[i], cl: over ? (claim && claim !== g.roles[i] ? 'said ' + rname(claim) : rname(g.roles[i])) : (claim ? rname(claim) : ''),
         cls: (i === me ? 'me ' : '') + (!g.alive[i] ? 'dead ' : '') + (P.sel.includes(i) ? 'sel ' : '') + (isTeam && i !== me && !over ? 'sure-evil ' : '') + (i === top && !over && i !== me ? 'top' : ''),
-        dead: !g.alive[i], extra: !g.alive[i] && g.ghost[i] ? '<span class="ghost" title="Has a vote"></span>' : '',
+        dead: !g.alive[i], extra: (!g.alive[i] && g.ghost[i] ? '<span class="ghost" title="Has a vote"></span>' : '') + (!over && g.day && g.day.vote && g.day.vote.votes[i] ? HAND : ''),
         badge: odds && !over && i !== me && g.alive[i] ? { text: pct(p), color: heat(p) } : null,
       });
     }
@@ -400,7 +432,8 @@
     const r = ROLES[v.me.role];
     let team = '';
     if (v.me.team) team = '<div class="tiny" style="color:var(--min)">Evil team: ' + v.me.team.filter(x => x.seat !== me).map(x => esc(g.names[x.seat]) + (x.demon ? ' (Demon)' : '')).join(', ') + (v.me.bluffs ? ' · Bluffs: ' + v.me.bluffs.map(rname).join(', ') : '') + '</div>';
-    const card = '<div class="rolecard"><span class="ic c-' + r.type + '">' + icon(r.id) + '</span><div class="grow"><div class="ttl">You are the ' + r.name + '</div><div class="ab">' + esc(r.ability) + '</div>' + team + '</div></div>';
+    if (v.me.team) team = team.replace('class="tiny" style="color:var(--min)"', 'class="tiny evilteam"');
+    const card = '<div class="rolecard">' + ctok(r.id) + '<div class="grow"><div class="ttl">You are the ' + r.name + '</div><div class="ab">' + esc(r.ability) + '</div>' + team + '</div></div>';
 
     // actions
     let act = '';
@@ -445,14 +478,17 @@
     }
     // update only the parts that changed, so a tap is never lost to a re-render
     const root = $('#v-play');
+    // the table from your chair: the Town Square in the middle, your character sheet in front of you,
+    // the Storyteller's prompts and your notes beside it
     if (!root.querySelector('#pCard')) {
-      root.innerHTML = '<div id="pCard"></div><div class="split show-circle"><div class="ringcol" id="pRing"></div>' +
+      root.innerHTML = '<div class="split show-circle"><div class="ringcol"><div id="pRing" style="display:contents"></div><div id="pCard"></div></div>' +
         '<div class="side playside"><div id="pAct" style="display:contents"></div><div class="scroll grow feed" id="feed"></div></div></div>';
     }
+    root.classList.toggle('is-night', !over && g.stage === 'night');
     const put = (id, html) => { const el = document.getElementById(id); if (el._h !== html) { el.innerHTML = html; el._h = html; return true; } return false; };
     put('pCard', card);
     const picking = !over && ((g.stage === 'night' && v.pending) || (g.stage !== 'night' && !g.day.vote && P.mode));
-    put('pRing', ring({ n: g.n, tokens, center, act: 'pseat', cls: (over ? '' : g.stage === 'night' ? 'night' : 'day') + (picking ? ' picking' : '') }));
+    put('pRing', ring({ n: g.n, tokens, center, act: 'pseat', me, hand: !over && g.day && g.day.vote ? g.day.vote.on : -1, cls: (over ? '' : g.stage === 'night' ? 'night' : 'day') + (picking ? ' picking' : '') }));
     put('pAct', act);
     if (put('feed', feed.join(''))) { const f = $('#feed'); f.scrollTop = f.scrollHeight; }
     fxDrive(SRC, SRC.online ? 'on:' + (ON.snap.code || '') : 'local:' + P.fxId);
@@ -487,6 +523,7 @@
   }
   function onName() { const el = $('#onName'); const n = (el ? el.value : state.playSetup.name || '').trim().slice(0, 14); state.playSetup.name = n; save(); return n; }
   function renderLobby() {
+    $('#v-play').classList.remove('is-night');
     const s = ON && ON.snap;
     let h = '<div class="scroll grow"><div class="panel" style="max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:12px">';
     if (!s || s.status === 'joining' || !s.seats) {
@@ -588,10 +625,17 @@
     if (!st.seats) return '<div class="muted small" style="padding:8px">Deal roles in Setup first.</div>';
     const tokens = st.seats.map((s, i) => ({
       seat: i, type: rtype(s.role), ic: icon(s.role), name: stName(i), cl: rname(s.role) + (s.thinks ? '\n→ ' + rname(s.thinks) : ''),
-      cls: s.dead ? 'dead' : '', dead: s.dead, extra: (s.dead && !s.ghost ? '' : (s.dead ? '<span class="ghost"></span>' : '')) + (s.rem.length ? '<span class="reminders">' + s.rem.map(r => '<span class="rem">' + esc(r) + '</span>').join('') + '</span>' : ''),
+      cls: s.dead ? 'dead' : '', dead: s.dead, extra: (s.dead && !s.ghost ? '' : (s.dead ? '<span class="ghost"></span>' : '')) + '', rems: s.rem.length ? s.rem.map(remTok).join('') : '',
     }));
-    const center = '<div class="lbl">Bluffs</div><div class="small">' + st.bluffs.map(rname).join('<br>') + '</div>';
-    return '<div style="display:flex;flex-direction:column;gap:8px;height:100%;min-height:360px">' + ring({ n: st.seats.length, tokens, center, act: 'gseat' }) + '<div class="small muted" style="text-align:center">Tap a seat for reminders, death and role changes.</div></div>';
+    // the three bluffs, shown as character tokens the way the Storyteller shows them to the Demon
+    const center = '<div class="lbl">Bluffs</div><div class="bluffs">' + st.bluffs.map(id => '<span class="bt">' + ctok(id) + esc(rname(id)) + '</span>').join('') + '</div>';
+    return '<div style="display:flex;flex-direction:column;gap:8px;height:100%;min-height:360px">' + ring({ n: st.seats.length, tokens, center, act: 'gseat', cls: 'grim', box: 'grimbox' }) + '<div class="small muted" style="text-align:center">Tap a seat for reminders, death and role changes.</div></div>';
+  }
+  // a reminder token: its character's symbol plus the word ("Poisoner: Poisoned" -> poison symbol, "Poisoned")
+  function remTok(lab) {
+    const k = lab.indexOf(': ');
+    const r = k > 0 ? Object.values(ROLES).find(x => x.name === lab.slice(0, k)) : null;
+    return '<span class="rem" title="' + esc(lab) + '">' + (r ? '<i class="c-' + r.type + '">' + icon(r.id) + '</i>' + esc(lab.slice(k + 2)) : esc(lab)) + '</span>';
   }
   function stRandom() {
     const st = state.st;

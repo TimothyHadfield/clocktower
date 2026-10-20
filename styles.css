@@ -86,52 +86,114 @@ label.fld { display: flex; flex-direction: column; gap: 6px; font-size: 13px; co
 .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 12px; }
 h2.sec { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; }
 
-/* ---------- the seat circle ---------- */
+/* ---------- the seat circle: the Town Square from your chair ----------
+   Real game: a life token per player on the Town Square board, in seat order (parchment side up =
+   alive, black side up = dead), a vote token on a dead player who still has a vote. Character tokens
+   are thick round cardboard with ink art: blue for good, red for evil. Your seat is at the near edge. */
+:root {
+  --parch: #efe4c8; --parch-2: #dccaa0; --parch-3: #c3ab78;
+  --ink-T: #1f4f93; --ink-O: #2b6a8c; --ink-M: #a3261c; --ink-D: #8c0f0f; --ink-x: #8a7a58;
+  /* the cardboard edge under a token, then its shadow on the table */
+  --edge: 0 1px 0 #b39d72, 0 2px 0 #8a7650, 0 3px 0 #66563a, 0 5px 9px rgba(0,0,0,.55);
+  --edge-dark: 0 1px 0 #2c2c30, 0 2px 0 #1c1c1f, 0 3px 0 #0e0e10, 0 5px 9px rgba(0,0,0,.6);
+}
 .ringwrap { flex: 1; min-height: 0; display: grid; place-items: center; position: relative; }
 .ring { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); container-type: size; }
 .ringbox { container-type: size; flex: 1; min-height: 160px; width: 100%; position: relative; }
-.ring::before { content: ""; position: absolute; inset: 9%; border-radius: 50%; border: 1px dashed #2f3650; background: radial-gradient(circle, rgba(240,179,84,.05), transparent 65%); }
+/* the Town Square board: a round dark board with a gold rim and clock ticks */
+.ring::before { content: ""; position: absolute; inset: 9%; border-radius: 50%; z-index: -1;
+  background: radial-gradient(circle at 50% 42%, #33251a 0%, #23180f 58%, #170f09 100%);
+  border: 2px solid rgba(206,168,96,.55);
+  box-shadow: inset 0 0 0 5px rgba(0,0,0,.22), inset 0 0 0 6px rgba(206,168,96,.18), inset 0 0 34px rgba(0,0,0,.65), 0 8px 22px rgba(0,0,0,.55); }
+.ring::after { content: ""; position: absolute; inset: 11.5%; border-radius: 50%; z-index: -1; pointer-events: none;
+  background: repeating-conic-gradient(from -1.2deg, rgba(222,186,112,.55) 0 2.4deg, transparent 2.4deg 30deg);
+  -webkit-mask: radial-gradient(circle, transparent 0 88%, #000 89% 96%, transparent 97%); mask: radial-gradient(circle, transparent 0 88%, #000 89% 96%, transparent 97%); }
 .tok {
   position: absolute; transform: translate(-50%, -50%); border-radius: 50%; display: grid; place-items: center;
-  background: radial-gradient(circle at 35% 30%, #2a3046, #1a1e2b 70%); border: 2px solid #343c56; color: var(--muted);
-  transition: transform .15s ease, border-color .2s, box-shadow .2s, opacity .2s;
-  box-shadow: 0 2px 8px rgba(0,0,0,.45);
+  background: radial-gradient(circle at 38% 30%, #fbf4e2, var(--parch) 40%, var(--parch-2) 80%, var(--parch-3) 100%);
+  border: 0; color: var(--ink-x);
+  transition: transform .15s ease, box-shadow .2s, opacity .2s;
+  box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), var(--edge);
 }
 .tok:active { transform: translate(-50%, -50%) scale(.95); }
-.tok .ic { width: 58%; height: 58%; }
-.tok::before { content: ""; position: absolute; inset: 7%; border-radius: 50%; border: 1px solid rgba(255,255,255,.05); pointer-events: none; }
-.tok.t-T { color: var(--tf); border-color: #34507e; } .tok.t-O { color: var(--out); border-color: #2f5a72; }
-.tok.t-M { color: var(--min); border-color: #74403a; } .tok.t-D { color: var(--dem); border-color: #7e2e2a; }
-.tok.t-M, .tok.t-D { background: radial-gradient(circle at 35% 30%, #3a2a34, #1e1820 70%); }
+.tok .ic { width: 58%; height: 58%; position: relative; }
+.tok .ic svg { width: 100%; height: 100%; stroke-width: 4.2; }
+/* the printed inner ring of a token */
+.tok::before { content: ""; position: absolute; inset: 7%; border-radius: 50%; border: 1.5px solid currentColor; opacity: .35; pointer-events: none; }
+.tok.t-T { color: var(--ink-T); } .tok.t-O { color: var(--ink-O); }
+.tok.t-M { color: var(--ink-M); } .tok.t-D { color: var(--ink-D); }
 /* labels scale with the circle so they stay readable on a laptop */
-.tok .nm { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 2px; font-size: clamp(11.5px, 2.5cqw, 16px); font-weight: 650; color: var(--text); white-space: nowrap; max-width: max(90px, 24cqw); overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000, 0 0 6px #000; }
-.tok .cl { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 1px; font-size: clamp(10px, 2.1cqw, 14px); font-weight: 600; color: #aeb5ca; white-space: pre; text-align: center; line-height: 1.2; max-width: max(96px, 23cqw); overflow: hidden; text-overflow: ellipsis; padding: 0 4px; border-radius: 6px; background: rgba(15,17,23,.72); }
-.tok .badge { position: absolute; top: 72%; left: calc(100% - 10px); transform: translateY(-50%); padding: 1px .4em; border-radius: 1em; font-size: clamp(11px, 2.2cqw, 15px); font-weight: 800; color: #0b0d12; text-align: center; box-shadow: 0 0 0 2px var(--bg), 0 1px 3px rgba(0,0,0,.5); font-variant-numeric: tabular-nums; }
-.tok.me { border-color: var(--warm); box-shadow: 0 0 0 3px rgba(240,179,84,.25), 0 2px 8px rgba(0,0,0,.45); }
-.tok.sel { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(110,168,254,.45), 0 0 16px rgba(110,168,254,.35); transform: translate(-50%, -50%) scale(1.06); }
-.tok.empty .ic { opacity: .45; }
-.tok.dead { filter: grayscale(.85) brightness(.62); }
-.tok.dead .ic { opacity: .7; }
-.tok .shroud { position: absolute; bottom: -4px; left: -8px; width: 34%; height: 34%; min-width: 18px; min-height: 18px; color: #dfe3ee; filter: drop-shadow(0 1px 2px #000); }
+.tok .nm { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 5px; font-size: clamp(11.5px, 2.5cqw, 16px); font-weight: 650; color: #f6efe0; white-space: nowrap; max-width: max(90px, 24cqw); overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000, 0 0 6px #000; }
+.tok .cl { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 2px; font-size: clamp(10px, 2.1cqw, 14px); font-weight: 600; color: #e8dcc0; white-space: pre; text-align: center; line-height: 1.2; max-width: max(96px, 23cqw); overflow: hidden; text-overflow: ellipsis; padding: 0 4px; border-radius: 6px; background: rgba(20,12,6,.72); }
+.tok .badge { position: absolute; top: 72%; left: calc(100% - 10px); transform: translateY(-50%); padding: 1px .4em; border-radius: 1em; font-size: clamp(11px, 2.2cqw, 15px); font-weight: 800; color: #0b0d12; text-align: center; box-shadow: 0 0 0 2px #1b120b, 0 2px 3px rgba(0,0,0,.6); font-variant-numeric: tabular-nums; }
+.tok.me { box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 0 0 3px rgba(240,179,84,.85), 0 0 14px rgba(240,179,84,.35), var(--edge); }
+.tok.sel { box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 0 0 4px rgba(110,168,254,.8), 0 0 16px rgba(110,168,254,.45), var(--edge); transform: translate(-50%, -50%) scale(1.06); }
+.tok.empty .ic { opacity: .32; }
+/* dead: the life token is flipped to its black side */
+.tok.dead { background: radial-gradient(circle at 38% 30%, #3c3c42, #222226 45%, #131315 100%); color: #8d8d96; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), var(--edge-dark); }
+.tok.dead .ic { opacity: .5; }
+.tok.dead::before { border-color: #8d8d96; opacity: .25; }
+.tok .shroud { position: absolute; bottom: -4px; left: -8px; width: 34%; height: 34%; min-width: 18px; min-height: 18px; color: #e9e3d4; filter: drop-shadow(0 1px 2px #000); }
+.tok.dead.me { box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), 0 0 0 3px rgba(240,179,84,.7), var(--edge-dark); }
 /* 11+ seats on a phone: label pills would hide the next seat's name, so use a text shadow instead */
 .ring.crowd .tok .cl { background: none; padding: 0; text-shadow: 0 1px 2px #000, 0 0 6px #000; }
 /* when you must pick a player, the living seats glow to say "tap me" */
 .ring.picking .tok:not(.dead):not(.sel):not(.me) { animation: pickme 1.6s ease-in-out infinite; }
-@keyframes pickme { 0%, 100% { box-shadow: 0 0 0 0 rgba(110,168,254,0), 0 2px 8px rgba(0,0,0,.45); } 50% { box-shadow: 0 0 0 4px rgba(110,168,254,.28), 0 2px 8px rgba(0,0,0,.45); } }
-.tok.sure-evil { border-color: var(--dem); } .tok.sure-good { border-color: var(--good); }
-.tok.top { box-shadow: 0 0 0 3px rgba(224,69,60,.35), 0 0 18px rgba(224,69,60,.35); }
-.tok .ghost { position: absolute; bottom: -4px; right: -6px; width: 16px; height: 16px; border-radius: 50%; background: #cfd3df; border: 2px solid var(--bg); }
-.tok .reminders { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 15px; display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; width: 110px; pointer-events: none; }
-.rem { font-size: 9.5px; padding: 1px 5px; border-radius: 8px; background: #2c2440; color: #e3d6ff; border: 1px solid #4a3d6a; white-space: nowrap; }
-.center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 46%; text-align: center; pointer-events: auto; }
-.center .lbl { font-size: clamp(11.5px, 2.3cqw, 15px); color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
-.center .big { font-size: clamp(18px, 7cqw, 52px); font-weight: 800; letter-spacing: -.02em; line-height: 1.1; margin: 2px 0; overflow-wrap: anywhere; }
-.center .sub { font-size: clamp(12px, 2.4cqw, 16px); color: var(--muted); }
+@keyframes pickme { 0%, 100% { box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 0 0 0 rgba(110,168,254,0), var(--edge); } 50% { box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 0 0 4px rgba(110,168,254,.45), var(--edge); } }
+.tok.sure-evil { box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 0 0 3px rgba(224,69,60,.85), var(--edge); }
+.tok.sure-good { box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 0 0 3px rgba(63,178,127,.85), var(--edge); }
+.tok.top { box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 0 0 3px rgba(224,69,60,.55), 0 0 18px rgba(224,69,60,.45), var(--edge); }
+/* the vote token a dead player keeps on their life token */
+.tok .ghost { position: absolute; bottom: -3px; right: -5px; width: 32%; height: 32%; min-width: 15px; min-height: 15px; border-radius: 50%;
+  background: radial-gradient(circle at 38% 30%, #ffffff, #e9e6de 60%, #c9c4b6); box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.18), 0 1px 0 #9d988a, 0 2px 0 #77736a, 0 3px 4px rgba(0,0,0,.55); }
+.tok .ghost::after { content: ""; position: absolute; inset: 28%; border-radius: 50%; border: 1.5px solid rgba(60,50,40,.55); }
+/* a raised hand over each yes vote */
+.tok .hand { position: absolute; top: -12%; right: -14%; width: 40%; min-width: 15px; aspect-ratio: 1; color: #f6efe0; filter: drop-shadow(0 1px 2px #000); }
+.tok .hand svg { width: 100%; height: 100%; }
+.ring .reminders.col { flex-direction: column; align-items: center; }
+.ring .reminders { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: flex-start; gap: 3px; pointer-events: none; z-index: 2; }
+/* reminder token: a small round parchment token with its character's symbol, the word beside it */
+.rem { display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: clamp(8.5px, 1.9cqw, 12px); font-weight: 700; line-height: 1.05; white-space: nowrap; color: #f1e6cc; text-shadow: 0 1px 2px #000, 0 0 4px #000; }
+.rem i { width: clamp(20px, 6.4cqw, 36px); aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%;
+  background: radial-gradient(circle at 38% 30%, #fbf4e2, var(--parch) 45%, var(--parch-2)); box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 1px 0 #8a7650, 0 2px 0 #66563a, 0 3px 4px rgba(0,0,0,.5); }
+.rem i svg { width: 62%; height: 62%; stroke-width: 5; }
+.rem i.c-T, .rem i.c-O { color: var(--ink-T); } .rem i.c-M, .rem i.c-D { color: var(--ink-M); }
+/* the clock hand points at the player on trial */
+.ring .clockhand { position: absolute; left: 50%; top: 50%; width: 2.2cqw; height: 31%; margin-left: -1.1cqw; transform-origin: 50% 100%; translate: 0 -100%; pointer-events: none; z-index: 0; opacity: .85; }
+.ring .clockhand svg { width: 100%; height: 100%; }
+/* the hand starts outside the words in the middle, so it never covers the nominee's name */
+.ring .clockhand { -webkit-mask: linear-gradient(#000 52%, transparent 62%); mask: linear-gradient(#000 52%, transparent 62%); }
+.center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 46%; text-align: center; pointer-events: auto; z-index: 1; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+.center .lbl { font-size: clamp(11.5px, 2.3cqw, 15px); color: #c9b48a; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
+.center .big { font-size: clamp(18px, 7cqw, 52px); font-weight: 800; letter-spacing: -.02em; line-height: 1.1; margin: 2px 0; overflow-wrap: anywhere; color: #f6efe0; }
+.center .big.c-T { color: var(--tf); } .center .big.c-D { color: #ff6a5e; }
+.center .sub { font-size: clamp(12px, 2.4cqw, 16px); color: #c9b48a; }
 .center .small { font-size: clamp(13px, 2.6cqw, 17px); }
 .center .pct { font-size: clamp(14px, 4.5cqw, 28px); font-weight: 800; }
-/* night and day tint the table, so the phase reads at a glance */
-.ring.night::before { border-color: #2e3b63; background: radial-gradient(circle, rgba(110,168,254,.10), rgba(60,80,160,.04) 55%, transparent 70%); }
-.ring.day::before { border-color: #4a3f2c; background: radial-gradient(circle, rgba(240,179,84,.10), rgba(240,179,84,.03) 55%, transparent 70%); }
+/* night and day light the board, so the phase reads at a glance */
+.ring.night::before { background: radial-gradient(circle at 50% 42%, #22283a 0%, #181b28 58%, #0f111a 100%); }
+.ring.day::before { background: radial-gradient(circle at 50% 42%, #3b2b1c 0%, #2a1d12 58%, #1a110a 100%); }
+/* the table under the circle */
+.tbl-surface.tbl-wood-dark { --tbl-base: #3f2716; }
+.tbl-surface.is-night { --tbl-base: #1e1a1c; --tbl-light: rgba(150,170,230,.10); --tbl-vig: rgba(0,0,0,.7); }
+.ringbox.tbl-surface { border-radius: 16px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.4), inset 0 2px 10px rgba(0,0,0,.45); }
+
+/* Grimoire: the Storyteller's box, felt-lined, character tokens + shrouds + reminders */
+.ringbox.grimbox { border-radius: 16px; background-color: #1d1418;
+  background-image: radial-gradient(ellipse 80% 70% at 50% 45%, rgba(255,230,190,.07), transparent 70%), var(--tbl-tex); background-size: 100% 100%, 140px 140px;
+  --tbl-tex: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .45 -.1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  border: 7px solid #2a1c12; box-shadow: inset 0 0 0 1px #6b4e2c, inset 0 0 24px rgba(0,0,0,.7), 0 0 0 1px #000, 0 4px 14px rgba(0,0,0,.5); }
+.ring.grim::before, .ring.grim::after { display: none; }
+.ring.grim .tok.dead { background: radial-gradient(circle at 38% 30%, #fbf4e2, var(--parch) 40%, var(--parch-2) 80%, var(--parch-3) 100%); box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), var(--edge); }
+.ring.grim .tok.dead .ic { opacity: .55; }
+/* the shroud token laid over a dead character */
+.ring.grim .tok .shroud { left: 50%; top: 2%; bottom: auto; width: 54%; height: 66%; min-width: 0; min-height: 0; margin-left: -28%; display: grid; place-items: start center; padding-top: 14%; color: #d9d2c0;
+  background: linear-gradient(#2b2b30, #0d0d10); clip-path: polygon(0 0, 100% 0, 100% 82%, 75% 100%, 50% 84%, 25% 100%, 0 82%); filter: drop-shadow(0 2px 2px rgba(0,0,0,.6)); }
+.ring.grim .tok .shroud svg { width: 62%; height: auto; }
+.ring.grim .center { width: 34%; }
+.bluffs { display: flex; justify-content: center; gap: 6%; margin-top: 4px; }
+.bluffs .bt { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 30%; font-size: clamp(9.5px, 1.9cqw, 13px); color: #e8dcc0; line-height: 1.15; }
+.bluffs .bt .ctok { width: min(11cqw, 100%); }
 
 /* ---------- lists ---------- */
 .list { display: flex; flex-direction: column; gap: 2px; }
@@ -222,6 +284,58 @@ h2.sec { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 
 .count-chip.ok { border-color: rgba(63,178,127,.6); color: #8fe0bb; }
 .count-chip.bad { border-color: rgba(224,69,60,.6); color: #ffb4ae; }
 
+/* ---------- Play: your place at the table ---------- */
+/* a character token (thick parchment cardboard, ink symbol in team colour) */
+.ctok { display: grid; place-items: center; flex: 0 0 auto; aspect-ratio: 1; border-radius: 50%; position: relative; color: var(--ink-x);
+  background: radial-gradient(circle at 38% 30%, #fbf4e2, var(--parch) 40%, var(--parch-2) 80%, var(--parch-3) 100%);
+  box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), var(--edge); }
+.ctok::before { content: ""; position: absolute; inset: 7%; border-radius: 50%; border: 1.5px solid currentColor; opacity: .35; }
+.ctok .ic { width: 60%; height: 60%; }
+.ctok .ic svg { width: 100%; height: 100%; stroke-width: 4.4; }
+.ctok.t-T { color: var(--ink-T); } .ctok.t-O { color: var(--ink-O); } .ctok.t-M { color: var(--ink-M); } .ctok.t-D { color: var(--ink-D); }
+/* your character sheet: cream paper on the table in front of you, your token on it */
+#v-play .rolecard { background: linear-gradient(180deg, #f1e7cf, #e4d7b8); border: 0; border-radius: 4px; color: #2a2118; padding: 8px 10px 8px 8px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 2px 3px rgba(0,0,0,.35), 0 8px 18px rgba(0,0,0,.35); }
+#v-play .rolecard .ctok { width: 48px; }
+#v-play .rolecard .ttl { color: #1f1710; }
+#v-play .rolecard .ab { color: #4c3f2e; }
+#v-play .rolecard .evilteam { color: #9a2219; }
+/* the log is your paper notes: a cream pad with a margin line */
+#v-play .feed { background: linear-gradient(90deg, transparent 24px, rgba(176,58,46,.32) 24px 25px, transparent 25px), linear-gradient(180deg, #ece2c9, #e3d6b6);
+  background-attachment: local; border-radius: 4px; padding: 10px 6px 6px 30px; gap: 0; color: #2b2218;
+  box-shadow: 0 2px 3px rgba(0,0,0,.35), 0 8px 18px rgba(0,0,0,.35);
+  -webkit-mask-image: none; mask-image: none; }
+#v-play .feed .f { background: none; border-radius: 0; padding: 4px 2px; border-bottom: 1px solid rgba(60,90,140,.16); }
+#v-play .feed .f.priv { background: linear-gradient(transparent 12%, rgba(242,200,70,.45) 12% 88%, transparent 88%); border: 0; border-bottom: 1px solid rgba(60,90,140,.16); }
+#v-play .feed .f.sys { color: #9a2219; border-bottom: 0; padding-top: 8px; }
+/* the Storyteller's prompts sit on the table as dark leather boxes */
+#v-play .votebox { background: rgba(24,16,10,.82); border-color: rgba(206,168,96,.6); box-shadow: 0 4px 12px rgba(0,0,0,.4); }
+#v-play .actbar .btn:not(.warm):not(.primary), #v-play .votebox .btn:not(.warm):not(.primary) { background: rgba(30,22,16,.86); border-color: rgba(206,168,96,.35); }
+/* the setup and lobby panels: a dark card lying on the table */
+#v-play .panel { background: rgba(22,16,12,.88); border-color: rgba(206,168,96,.3); box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+.tbl-surface.is-night .rolecard, .tbl-surface.is-night .feed { filter: brightness(.86) saturate(.9); }
+/* token flip (life token turned to its black side) */
+@keyframes tokflip { 0% { transform: translate(-50%, -50%) rotateY(180deg); } 100% { transform: translate(-50%, -50%) rotateY(0); } }
+.tok.flipping { animation: tokflip .55s cubic-bezier(.3,.7,.3,1); }
+#v-play .rolecard .ctok .ic { width: 60%; height: 60%; }
+@media (min-width: 900px) { #v-play .rolecard .ctok { width: 58px; } }
+/* phone: the sheet stays a slim strip so the circle keeps its room */
+@media (max-width: 899px) {
+  #v-play .ringcol { gap: 8px; }
+  #v-play .rolecard { padding: 5px 8px 5px 6px; gap: 8px; }
+  #v-play .rolecard .ctok { width: 40px; }
+  #v-play .rolecard .ttl { font-size: 14px; line-height: 1.2; }
+  #v-play .rolecard .ab { font-size: 11.5px; line-height: 1.25; }
+  #v-play .playside { max-height: 31%; }
+  #v-play .feed { padding-top: 4px; }
+}
+/* phone turned sideways: the circle and your sheet on the left, prompts and notes on the right */
+@media (max-width: 899px) and (orientation: landscape) and (max-height: 520px) {
+  #v-play .split { flex-direction: row; }
+  #v-play .split > .ringcol { flex: 1.15; min-width: 0; }
+  #v-play .playside { flex: 1; max-height: none; min-width: 0; }
+}
+
 /* ---------- laptop ---------- */
 @media (min-width: 900px) {
   :root { --head-h: 56px; }
@@ -278,3 +392,17 @@ h2.sec { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 
 .fx-set .q { width: 22px; height: 22px; font-size: 12px; }
 .fx-set .fx-test { min-height: 34px; border-radius: 10px; background: var(--card-2); }
 .fx-set .fx-why { padding: 0; margin-top: -8px; }
+
+/* ---------- paper: the Storyteller's night sheet and the town notebook's log ---------- */
+#v-st .step { background: linear-gradient(180deg, #efe5cc, #e5d8b9); color: #2a2118; border-radius: 3px; box-shadow: 0 1px 2px rgba(0,0,0,.35); }
+#v-st .step .muted, #v-st .step .num { color: #5a4b37; }
+#v-st .step .ic.c-T, #v-st .step .ic.c-O { color: var(--ink-T); } #v-st .step .ic.c-M, #v-st .step .ic.c-D { color: var(--ink-M); }
+#v-town .nb-log > .scroll { background: linear-gradient(90deg, transparent 24px, rgba(176,58,46,.32) 24px 25px, transparent 25px), linear-gradient(180deg, #ece2c9, #e3d6b6);
+  background-attachment: local; border-radius: 4px; padding: 4px 4px 4px 30px; color: #2b2218; box-shadow: 0 2px 3px rgba(0,0,0,.35); }
+#v-town .nb-log .list { gap: 0; }
+#v-town .nb-log .li { background: none; border-radius: 0; border: 0; border-bottom: 1px solid rgba(60,90,140,.16); padding: 6px 2px; }
+#v-town .nb-log .muted { color: #5a4b37; }
+#v-town .nb-log .phase-h { color: #9a2219; }
+#v-town .nb-log .li .x { color: #6b5a42; }
+#v-town .nb-log .li .x:hover { background: rgba(0,0,0,.08); color: #2b2218; }
+#v-town .nb-log .ic.c-T, #v-town .nb-log .ic.c-O { color: var(--ink-T); } #v-town .nb-log .ic.c-M, #v-town .nb-log .ic.c-D { color: var(--ink-M); }

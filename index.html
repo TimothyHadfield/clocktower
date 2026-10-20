@@ -10,7 +10,8 @@
 <meta name="description" content="Blood on the Clocktower notebook, Demon odds solver, Storyteller helper and a full Trouble Brewing game against computer players.">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="styles.css?v=6">
+<link rel="stylesheet" href="css/table.css?v=7">
+<link rel="stylesheet" href="styles.css?v=7">
 </head>
 <body>
 <header class="top">
@@ -22,7 +23,7 @@
   <main>
     <section class="view" id="v-town"></section>
     <section class="view" id="v-odds"></section>
-    <section class="view" id="v-play"></section>
+    <section class="view tbl-surface tbl-wood-dark" id="v-play"></section>
     <section class="view" id="v-st"></section>
     <section class="view" id="v-roles"></section>
   </main>
@@ -36,15 +37,16 @@
 </div>
 <div id="sheetRoot"></div>
 <div id="toastRoot"></div>
-<script src="js/roles.js?v=6"></script>
-<script src="js/art.js?v=6"></script>
-<script src="js/solver.js?v=6"></script>
-<script src="js/engine.js?v=6"></script>
-<script src="js/bots.js?v=6"></script>
-<script src="js/ctonline.js?v=6"></script>
-<script src="js/fx.js?v=6"></script>
-<script src="js/ctfx.js?v=6"></script>
-<script src="js/app.js?v=6"></script>
-<script type="module">import { createOnline } from './js/online.js?v=6'; window.CTOnlineLib = { createOnline }; window.dispatchEvent(new Event('ct-online-ready'));</script>
+<script src="js/roles.js?v=7"></script>
+<script src="js/art.js?v=7"></script>
+<script src="js/solver.js?v=7"></script>
+<script src="js/engine.js?v=7"></script>
+<script src="js/bots.js?v=7"></script>
+<script src="js/ctonline.js?v=7"></script>
+<script src="js/fx.js?v=7"></script>
+<script src="js/table.js?v=7"></script>
+<script src="js/ctfx.js?v=7"></script>
+<script src="js/app.js?v=7"></script>
+<script type="module">import { createOnline } from './js/online.js?v=7'; window.CTOnlineLib = { createOnline }; window.dispatchEvent(new Event('ct-online-ready'));</script>
 </body>
 </html>
