@@ -39,7 +39,7 @@
 
   // ------------------------------------------------------------------ solver worker
   let worker = null;
-  try { worker = new Worker('js/worker.js?v=4'); } catch (e) { worker = null; }
+  try { worker = new Worker('js/worker.js?v=5'); } catch (e) { worker = null; }
   const pending = {};
   let seq = 0;
   function runSolve(tag, input, cb) {
@@ -81,11 +81,11 @@
     // o: { n, tokens:[{seat, cls, ic, type, name, cl, badge, extra}], center }
     const n = o.n;
     const size = Math.min(15, 150 / n);
-    let h = '<div class="ring" style="--ts:' + size + 'cqw">';
+    let h = '<div class="ring ' + (o.cls || '') + (n >= 11 ? ' crowd' : '') + '" style="--ts:' + size + 'cqw">';
     for (const t of o.tokens) {
       const a = (-90 + (360 * t.seat) / n) * Math.PI / 180;
       const x = 50 + 39 * Math.cos(a), y = 50 + 37.5 * Math.sin(a);
-      h += '<button class="tok t-' + (t.type || 'x') + ' ' + (t.cls || '') + '" style="left:' + x.toFixed(2) + '%;top:' + y.toFixed(2) + '%;width:' + size + 'cqw;height:' + size + 'cqw" data-act="' + o.act + '" data-seat="' + t.seat + '" aria-label="' + esc(t.name) + '">' +
+      h += '<button class="tok t-' + (t.type || 'x') + ' ' + (t.cls || '') + (t.type ? '' : ' empty') + '" style="left:' + x.toFixed(2) + '%;top:' + y.toFixed(2) + '%;width:' + size + 'cqw;height:' + size + 'cqw" data-act="' + o.act + '" data-seat="' + t.seat + '" aria-label="' + esc(t.name) + '">' +
         '<span class="ic">' + t.ic + '</span>' +
         (t.cl ? '<span class="cl">' + esc(t.cl) + '</span>' : '') +
         '<span class="nm">' + esc(t.name) + '</span>' +
@@ -172,7 +172,7 @@
     $('#v-town').innerHTML = banner +
       '<div class="townbar phone-only-row">' + seg('townview', [['circle', 'Circle'], ['log', 'Log']], state.townView, 'phone-only') + '</div>' +
       '<div class="split show-' + state.townView + '">' +
-      '<div class="ringcol">' + ring({ n: nb.n, tokens, center, act: 'seat' }) +
+      '<div class="ringcol">' + ring({ n: nb.n, tokens, center, act: 'seat', cls: isNight(nb.t) ? 'night' : 'day' }) +
       '<div class="actions"><button class="btn" data-act="form" data-f="nom">' + plus() + 'Vote</button><button class="btn" data-act="form" data-f="death">' + plus() + 'Death</button><button class="btn" data-act="form" data-f="info">' + plus() + 'Info</button></div></div>' +
       '<div class="side nb-log"><div class="row"><h2 class="sec grow">Log</h2></div><div class="scroll grow" id="logScroll">' + logHTML(nb) + '</div></div>' +
       '</div>';
@@ -231,8 +231,8 @@
       const pd = odds.pDemon[i] || 0, pe = odds.pEvil[i] || 0;
       rows += '<div class="orow" style="' + (dead[i] ? 'opacity:.55' : '') + '"><span class="ic c-' + (c ? rtype(c) : 'T') + '">' + (c ? icon(c) : art.tokenIcon('T')) + '</span>' +
         '<span style="min-width:0"><b>' + esc(nb.names[i]) + '</b>' + (i === nb.me ? ' <span class="tiny muted">you</span>' : '') + '<br><span class="tiny muted">' + (c ? rname(c) : 'no claim') + (dead[i] ? ' · dead' : '') + '</span></span>' +
-        '<div class="bar"><i style="width:' + (pd * 100) + '%;background:' + heat(pd) + '"></i><b>' + pct(pd) + '</b></div>' +
-        '<div class="bar"><i style="width:' + (pe * 100) + '%;background:' + heat(pe * 0.6) + '"></i><b>' + pct(pe) + '</b></div></div>';
+        '<div class="bar"><i style="width:calc((100% - 40px) * ' + pd.toFixed(4) + ');background:' + heat(pd) + '"></i><b>' + pct(pd) + '</b></div>' +
+        '<div class="bar"><i style="width:calc((100% - 40px) * ' + pe.toFixed(4) + ');background:' + heat(pe * 0.6) + '"></i><b>' + pct(pe) + '</b></div></div>';
     }
     let teams = '<h2 class="sec">Likely evil teams</h2><div class="list">';
     for (const tm of odds.topTeams.slice(0, 6)) {
@@ -421,7 +421,8 @@
     }
     const put = (id, html) => { const el = document.getElementById(id); if (el._h !== html) { el.innerHTML = html; el._h = html; return true; } return false; };
     put('pCard', card);
-    put('pRing', ring({ n: g.n, tokens, center, act: 'pseat' }));
+    const picking = !over && ((g.stage === 'night' && v.pending) || (g.stage !== 'night' && !g.day.vote && P.mode));
+    put('pRing', ring({ n: g.n, tokens, center, act: 'pseat', cls: (over ? '' : g.stage === 'night' ? 'night' : 'day') + (picking ? ' picking' : '') }));
     put('pAct', act);
     if (put('feed', feed.join(''))) { const f = $('#feed'); f.scrollTop = f.scrollHeight; }
   }
