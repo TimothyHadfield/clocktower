@@ -265,3 +265,16 @@ h2.sec { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 
   .count-chip { padding: 3px 7px; font-size: 12px; }
 }
 @media (max-width: 380px) { .seg button { padding: 0 9px; } }
+
+/* ---------- Sound & effects (rows from js/fx.js, made to match the rows above) ---------- */
+.fx-set { display: flex; flex-direction: column; gap: 14px; }
+.fx-set .fx-row { border-top: 0; padding: 0; min-height: 30px; gap: 8px; }
+.fx-set .fx-row.dim { opacity: .45; }
+.fx-set .switch { width: 50px; height: 30px; }
+.fx-set .switch span { display: none; }
+.fx-set .seg { display: inline-flex; }
+.fx-set .seg button { min-height: 34px; padding: 0 12px; }
+.fx-set .seg button[aria-pressed="true"] { background: var(--card-2); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.fx-set .q { width: 22px; height: 22px; font-size: 12px; }
+.fx-set .fx-test { min-height: 34px; border-radius: 10px; background: var(--card-2); }
+.fx-set .fx-why { padding: 0; margin-top: -8px; }

@@ -50,3 +50,9 @@
   - New solver test, seen failing on the old solver (90 vs 75 line-ups). Results: solver 12, engine 19, art 365, online 148.
   - Badge overlap measured in WebKit at 393 px and 1440 px (Play 5/8/12, Town 15, 16 hard practice puzzles): 0 overlaps, 0 errors.
   - Main thread: no app call over 100 ms. Headless WebKit showed ~300 ms frame gaps that Chromium didn't (an engine artefact; the solver already runs in a Worker).
+
+## 2026-10-20: sounds, celebrations, animations (builder, fx wave)
+- **Asked (Tim):** "add opptional sounds … win celebrations, and other fun annimations … everything customizable in the settings". Manager: atmospheric, never loud (bell for night/day, vote ticks, execution, dawn deaths, good/evil win).
+- **Built:** `js/fx.js` (copy of `_fx`), `js/ctfx.js` (event → sound/animation map, see progress.md), hooks in `renderPlay` (view diff, so computer and online moves sound too), error sound on rejected actions, "Sound & effects" section in the Settings sheet, `.fx-set` CSS to match the app's switches/segments. `?v=6`.
+- **Verified:** `tests/fx.test.js` 6/6 (scripted games through engine + bots, FX.play spy, fake AudioContext: Sound off = 0 audio sources, Animations off = 0 animate calls, win/lose kind right over 30 games); seen failing on the old code (no module) and on 3 deliberate breaks (win/lose swapped, NO votes ticking, dawn unmapped). Full suite green. WebKit 393 px + 1440 px: Settings, night pick, day vote ("Yes" float visible), win with confetti (also Chrome): 0 console errors, no overflow, no page scroll. Shots in manager scratchpad `design/clocktower-fx/`.
+- **Open:** sounds never heard (no Web Audio in headless WebKit); real iPhone; real online game.

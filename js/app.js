@@ -25,6 +25,35 @@
   const phaseLabel = t => E.label(t);
   const isNight = t => t % 2 === 1;
 
+  // ------------------------------------------------------------------ sounds + animations (js/fx.js, js/ctfx.js)
+  const FXL = window.FX || null, CFX = CT.fx;
+  if (FXL && CFX) { FXL.init({ game: 'clocktower', accent: '#6ea8fe' }); CFX.defineSounds(FXL); }
+  let fxPrev = null;
+  function fxFind(t, kind) {
+    if (t && t.seat != null) {
+      const tok = document.querySelector('#pRing .tok[data-seat="' + t.seat + '"]');
+      // the token itself is positioned with a transform, so scale/shake its icon instead
+      return tok && (kind === 'pop' || kind === 'shake') ? tok.querySelector('.ic') : tok;
+    }
+    if (t === 'card') return document.querySelector('#pCard .rolecard .ic');
+    if (t === 'act') return document.querySelector('#pAct .votebox .btn:last-of-type');
+    if (t === 'center') return document.querySelector('#pRing .center .big');
+    return null;
+  }
+  function fxDrive(SRC, key) {
+    if (!FXL || !CFX) return;
+    const cur = SRC ? CFX.snap(SRC.v, key) : null;
+    const list = cur ? CFX.events(fxPrev, cur) : [];
+    fxPrev = cur;
+    CFX.play(list, { FX: FXL, find: fxFind });
+  }
+  function fxError() {
+    if (!FXL) return;
+    FXL.play('error');
+    const a = document.querySelector('#pAct > *');
+    if (a) FXL.shake(a);
+  }
+
   // ------------------------------------------------------------------ state
   function defNb(n) {
     return { n, names: NAMES.slice(0, n), claims: Array(n).fill(null), sure: Array(n).fill(null), me: 0, meMayBeDrunk: true, t: 1, deaths: [], noms: [], infos: [], notes: Array(n).fill(''), nextId: 1 };
@@ -39,7 +68,7 @@
 
   // ------------------------------------------------------------------ solver worker
   let worker = null;
-  try { worker = new Worker('js/worker.js?v=5'); } catch (e) { worker = null; }
+  try { worker = new Worker('js/worker.js?v=6'); } catch (e) { worker = null; }
   const pending = {};
   let seq = 0;
   function runSolve(tag, input, cb) {
@@ -304,7 +333,7 @@
     const me = Math.floor(Math.random() * n);
     const names = NAMES.slice(0, n).map((x, i) => (i === me ? 'You' : x));
     const g = E.createGame({ n, names, kinds: names.map((x, i) => (i === me ? 'you' : 'bot')), seed: (Math.random() * 2 ** 31) | 0 });
-    state.play = { g, me, levels: Array(n).fill(S.level), mem: {}, sel: [], mode: null, hist: [] };
+    state.play = { g, me, levels: Array(n).fill(S.level), mem: {}, sel: [], mode: null, hist: [], fxId: Date.now() };
     myOdds = null; myOddsKey = ''; pubCache = new Map();
     save(); renderPlay(); requestMine(); scheduleTick(400);
   }
@@ -312,12 +341,12 @@
     const S = src();
     if (S && S.online) {
       const ui = ON.ui; ui.sel = []; ui.mode = null;
-      ON.room.act(a).then(r => { if (r && !r.ok && r.message) toast(r.message); });
+      ON.room.act(a).then(r => { if (r && !r.ok && r.message) { toast(r.message); fxError(); } });
       renderPlay(); return;
     }
     const P = state.play;
     const ns = E.apply(P.g, Object.assign({ seat: P.me }, a));
-    if (ns.error) { toast(ns.error); return; }
+    if (ns.error) { toast(ns.error); fxError(); return; }
     if (P.g.stage === 'day' && ns.stage !== 'day' && myOdds && !myOdds.error) P.hist.push({ t: P.g.t, p: myOdds.pDemon.slice() });
     P.g = ns; P.sel = []; P.mode = null;
     save(); renderPlay(); requestMine(); scheduleTick(300);
@@ -325,8 +354,9 @@
 
   function renderPlay() {
     const SRC = src();
-    if (ON && (!SRC || !SRC.online)) { renderLobby(); return; }
+    if (ON && (!SRC || !SRC.online)) { fxPrev = null; renderLobby(); return; }
     if (!SRC) {
+      fxPrev = null;
       const S = state.playSetup;
       $('#v-play').innerHTML = '<div class="scroll grow"><div class="panel" style="max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:14px">' +
         '<div class="row"><span style="width:44px;height:44px;color:var(--dem)">' + icon('imp') + '</span><div class="grow"><b style="font-size:18px">Trouble Brewing</b><div class="small muted">The computer is the Storyteller. Other seats are computers or friends online.</div></div></div>' +
@@ -425,6 +455,7 @@
     put('pRing', ring({ n: g.n, tokens, center, act: 'pseat', cls: (over ? '' : g.stage === 'night' ? 'night' : 'day') + (picking ? ' picking' : '') }));
     put('pAct', act);
     if (put('feed', feed.join(''))) { const f = $('#feed'); f.scrollTop = f.scrollHeight; }
+    fxDrive(SRC, SRC.online ? 'on:' + (ON.snap.code || '') : 'local:' + P.fxId);
   }
   // ------------------------------------------------------------------ online room (shared _online layer)
   const ONKEY = 'clocktower:online';
@@ -622,6 +653,7 @@
     const st = old ? old.scrollTop : 0;
     const fresh = !old;
     $('#sheetRoot').innerHTML = '<div class="sheet-wrap" data-act="sheet-bg"' + (fresh ? '' : ' style="animation:none"') + '><div class="sheet" role="dialog" aria-modal="true"' + (fresh ? '' : ' style="animation:none"') + '><div class="sh-head"><h3>' + sheet.title + '</h3><button class="iconbtn" data-act="sheet-close" aria-label="Close">' + xIcon + '</button></div><div class="sh-body">' + sheet.body() + '</div>' + (sheet.foot ? '<div class="sh-foot">' + sheet.foot() + '</div>' : '') + '</div></div>';
+    const fxSlot = document.getElementById('fxSlot'); if (fxSlot && FXL) FXL.renderSettings(fxSlot);
     const nb = document.querySelector('.sh-body'); if (nb) nb.scrollTop = st;
   }
 
@@ -802,6 +834,7 @@
         h += fldDiv('Names', '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px">' + nb.names.map((x, i) => '<input type="text" data-name="' + i + '" value="' + esc(x) + '" maxlength="14" autocomplete="off" aria-label="Seat ' + (i + 1) + ' name">').join('') + '</div>');
         h += '<h2 class="sec">Practice ' + helpBtn('practice') + '</h2><div class="row"><button class="btn grow" data-act="practice" data-lv="easy">Easy</button><button class="btn grow" data-act="practice" data-lv="medium">Medium</button><button class="btn grow" data-act="practice" data-lv="hard">Hard</button></div>';
         h += '<button class="btn danger" data-act="nb-new">New notebook</button>';
+        if (FXL) h += '<h2 class="sec">Sound &amp; effects</h2><div id="fxSlot"></div>';
         h += '<div class="row small muted"><span class="grow">How strong are the computers?</span>' + helpBtn('strong') + '</div>';
         h += '<div class="tiny muted">Clocktower ' + BUILD + ' · fan-made, not affiliated with the game\'s publisher. Role text written in our own words.</div>';
         return h;
