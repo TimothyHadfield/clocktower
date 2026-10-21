@@ -4,7 +4,7 @@
 Read this file, then CLAUDE.md, then `docs/rules-check.md` and `docs/ideas.md`. Code map: `js/roles.js` (72 roles, counts, night order), `js/solver.js` (line-up enumerator → Demon/evil odds), `js/engine.js` (Trouble Brewing rules + computer Storyteller), `js/bots.js` (computer players), `js/ctonline.js` (game object for the shared online layer), `js/app.js` (all UI), `js/art.js` (icons), `js/worker.js` (solver off the main thread).
 Sounds/animations: `js/fx.js` (byte copy of `../_fx/fx.js`, never edit; re-copy), `js/ctfx.js` (game events → sounds/animations, pure `events(prev, cur)`).
 Table look: `css/table.css` + `js/table.js` (byte copies of `../_table/`, never edit; re-copy). The game's own table styling is in `styles.css` ("the seat circle" and "Play: your place at the table" sections).
-Last updated: 2026-10-20 (first build, phase 1 + phase 2, QA fixes, visual design pass, sounds + celebrations, real-table look, edge pass).
+Last updated: 2026-10-21 (first build, phase 1 + phase 2, QA fixes, visual design pass, sounds + celebrations, real-table look, edge pass, visibility pass).
 
 ## Goal right now
 Tim: "could you also explore blood on the clocktower?" Phase 2: "build regular play online with a computer or other online players for all the games … that match exactly the play of the in-person game … Really work on the webdesign … art … make sure that everything works properlly without errors … get everything right like rules … specific numbers."
@@ -23,6 +23,13 @@ Tim: "could you also explore blood on the clocktower?" Phase 2: "build regular p
 | Visual design pass (circle text scales, night/day tint, pick glow, odds bars) | Done 10-20, before/after shots in the manager's scratchpad `design/clocktower/` |
 | Optional sounds, win/lose celebration, small animations; "Sound & effects" in Settings | Done 10-20 (`tests/fx.test.js`) |
 | Real-table look: wood table, Town Square board with clock ticks, parchment life/character tokens (black side = dead, white vote token), your seat at the bottom, your character sheet in front of you, log as note paper, clock hand + raised hands in votes, Grimoire box with shrouds, round reminder tokens, bluff tokens, night sheet on paper | Done 10-20, shots in the manager's scratchpad `table/clocktower/` (before/, after/, real.md) |
+
+| Visibility pass: circle fills the screen, real phone + landscape layouts, readable 12–15-seat circles | Done 10-21, shots + audit in the manager's scratchpad `vis/clocktower/` (before/, after/, audit.md; `shoot.mjs` + `check.mjs` measure, `taps.mjs` checks taps) |
+
+## Visibility pass (2026-10-21)
+Circle size before → after: Play phone 274–290 → 332–343 px; phone landscape 160–197 → 261; laptop 1280 572 → 684, 1440 728 → 812; Grimoire phone 355 square → 355×435 oval, landscape 195 → 247 tall. Layout checks: 97 of 333 failed on the old build, 8 now (all at 320 px / landscape / 15-seat Grimoire). Seat taps 528/528 hit in WebKit and Chrome.
+- Phone Play is one column: circle, slim character card (tap it for the full ability), vote/action box, log filling the rest.
+- Landscape and laptop: circle takes the full height on the left, everything else on the right. Storyteller in landscape stacks Setup/Night/Grimoire on the left.
 
 ## Edge pass (weird scenarios, 2026-10-20)
 46 scenarios tested (list + evidence in the manager's scratchpad `edge/clocktower/scenarios.md`); 15 failed and are fixed:
@@ -61,6 +68,7 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 - "add opptional sounds you can add to the games that reflect what's happening in the game accurately as well as win celebrations, and other fun annimations to go along with everything. Just make sure everything is customizable in the settings so the user can play as preffered." (2026-10-20). Manager: keep Clocktower atmospheric, never loud.
 - "could you also make sure that each of the games also have a look to them so that the game (either board or card layout) looks almost identical to how the board or card layout looks like in real life ... It should look kind of like you're looking through a camera that is connected to a user's glasses that is playing in real life" (2026-10-20). Keep every helper (odds, log, prompts); original art only.
 - "I've noticed the games often have good user interfaces but could be improved especially when a scenario happens that the game might've not really thought about or whatnot. Could you focus on making each game perfect especially in scenarios that the game doesn't expect or are a little weird." (2026-10-20)
+- "for a lot of the games the cards or board layout is too small to easily see what's going on. Some games just need small design imporvements like filling the screen with the board view and fitting the cards and other things in the empty space, some have severe errors like TTR. Fix this so the view of what's happening and where everything is is very clear. Consider parts of the board that are dense in what's happening and if the user can reasonably see it." (2026-10-21) Manager: keep the real-table look, make it bigger and clearer, not more app-like.
 - Phone-first dark look with the Hub tokens. No page scroll on main screens. Labels 1–3 words, with explanations behind a "?". $0.
 
 ## Traps
@@ -70,7 +78,9 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 - The Play view updates its parts (`#pCard`, `#pRing`, `#pAct`, `#feed`) separately, so a tap isn't lost to a re-render. Keep that.
 - Time encoding: night k = 2k−1, day k = 2k.
 - The engine's `who()` helper fixes verbs for the seat named "You" ("You nominate"). Use it for any new log line that starts with a name.
-- Ring text (`.nm`, `.cl`, `.badge`, `.center *`) is sized in `cqw` of `.ring` with a px floor. Don't go back to fixed px: laptop text was unreadably small.
+- Ring sizes (tokens, `.nm`, `.cl`, `.badge`, `.center *`) are in `cqmin` of `.ring` with a px floor (floors: names 10.5, claims 10, badges 11–12, reminders 10). Don't go back to fixed px or cqw: the Grimoire ring is an oval (`.ring.oval`, fills its box), and cqmin sizes it by the short side.
+- `#v-play` and `#v-town` are size containers; their grids use `min(100cqh, …)` so the circle takes the full height on laptop/landscape. On phone portrait `.ringcol` and `.playside` are `display: contents` (one flex column; the ringbox is `aspect-ratio: 1`, the feed takes the rest). Re-run the scratchpad `vis/clocktower/check.mjs` after any layout change.
+- Seat classes from `ring()`: `lft` (left half), `rgt` (far right, badge kept on screen), `vt` (near top/bottom). Crowd mode places badge/shroud/hand/ghost by these. The hand is FX-popped, so place it with top/left, never transform.
 - `ring()` adds `.crowd` at 11+ seats: smaller tokens, and claim + name sit in one `.lb` column under the token, width-capped by `--lw` (set per seat count in `ring()`). Badge, hand, shroud and ghost move to the token's top corners in crowd mode. Measure with the manager's scratchpad `edge/clocktower/overlap.mjs` after any ring change (12 seats on a phone: 0 overlaps on 10-20).
 - Back button: every sheet (and help page over it) and every tab change is a history entry (`histPush`, `sheetDepth`, `skipPop`). Close sheets with `dismissSheet()`, not `closeSheet()`, or a dead history entry is left behind.
 - `tick()` waits while `document.hidden`; a `storage` listener adopts saves from another tab. If the solver worker fails, pending jobs re-run on the main thread (`pending[tag].input`).
@@ -80,7 +90,7 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 - `ring()` takes `me` (that seat is drawn at the bottom, order stays clockwise), `hand` (clock hand target) and `box` (surface class). Grimoire reminders are `t.rems`, drawn in the ring just inside the token (not inside the button). Don't go back to seat 0 at the top in Play/Town.
 - Token look uses CSS vars `--parch*`, `--ink-T/O/M/D`, `--edge` (cardboard edge + shadow). Any box-shadow on `.tok` must end with `var(--edge)` or the token goes flat.
 - A death flips the life token (`.tok.flipping`), and the new-game deal turns your character token (`#pCard .ctok`), timed off the ctfx event list in `fxDrive`. Both use `TABLE.animOn()` (respects Animations off / reduced motion).
-- `#v-play` is the table (`tbl-surface tbl-wood-dark`, `.is-night` at night). `#pCard` now sits under the circle inside `.ringcol` (your seat side); `#pRing` is `display:contents`.
+- `#v-play` is the table (`tbl-surface tbl-wood-dark`, `.is-night` at night). `#pCard` sits at the top of `.playside` (under the circle on a phone, top of the right column on laptop) and opens the full ability on tap (`play-card`); `#pRing` is `display:contents`. The feed sticks to the newest line unless you scrolled up.
 - The odds badge sits on the token's right side (`.tok .badge`). Corners covered the role/name labels; check overlaps with `scratchpad/ct/fix/overlap.mjs`-style measuring.
 
 ## Decisions
@@ -94,6 +104,7 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 - BMR/S&V wording of abilities against the official almanac (order checked, text is ours).
 - Online with 3+ people, host dropping mid-game, rejoin by name. An AFK online player stalls the day (not fixed: needs the shared layer).
 - Edge pass: 14-character names at 12–15 seats still touch a neighbour's odds badge slightly (1–3 spots); on iPhone SE width (320) and landscape the circle is so small that ~5–10 small touches remain.
+- Visibility pass: at 320 px and phone landscape, 1–3 small touches remain per crowded screen (reminders of neighbouring Grimoire seats, a name against a claim label); a 15-seat Grimoire in phone landscape has 21 px tokens with shortened names; at 320 px the 12-seat circle is 237 px. The game-over circle still shows claims, not true roles (not changed; not a layout issue). Not seen on a real iPhone.
 - The design pass's pick-glow animation was not seen moving: screenshots are stills. Also not checked on a real iPhone.
 - Sounds were never heard: headless WebKit on Windows has no Web Audio. The sound list is tested in node with a fake AudioContext; loudness/feel of the bells on a real phone is unchecked. Confetti ran slowly in headless WebKit (same frame-gap artefact).
 - Sounds in a real online game (only the shared view-diff path, tested locally).

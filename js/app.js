@@ -139,14 +139,18 @@
     // 11+ seats: smaller tokens, and the claim + name stack under each token (like the name printed
     // on a real token), so neighbours' labels never collide
     const crowd = n >= 11;
+    // sizes are in cqmin of the ring (its shorter side): the same as before on the round Town Square,
+    // and an oval Grimoire (o.oval: the ring fills its whole box) sizes tokens by its short side
     const size = crowd ? Math.min(11.5, 128 / n) : Math.min(15, 150 / n);
-    let h = '<div class="ring ' + (o.cls || '') + (crowd ? ' crowd' : '') + '" style="--ts:' + size + 'cqw;--lw:' + (crowd ? (200 / n).toFixed(1) : 24) + 'cqw">';
+    let h = '<div class="ring ' + (o.cls || '') + (crowd ? ' crowd' : '') + (o.oval ? ' oval' : '') + '" style="--ts:' + size + 'cqmin;--lw:' + (crowd && o.oval ? 'max(' + (200 / n).toFixed(1) + 'cqmin, min(' + (150 / n).toFixed(1) + 'cqw, 22cqmin))' : (crowd ? (200 / n).toFixed(1) : 24) + 'cqmin') + '">';
     if (o.hand != null && o.hand >= 0) h += '<span class="clockhand" style="rotate:' + (deg(o.hand) + 90).toFixed(1) + 'deg">' + CLOCKHAND + '</span>';
     for (const t of o.tokens) {
       const a = deg(t.seat) * Math.PI / 180;
       const x = 50 + 39 * Math.cos(a), y = 50 + 37.5 * Math.sin(a);
       const labels = (t.cl ? '<span class="cl">' + esc(t.cl) + '</span>' : '') + '<span class="nm">' + esc(t.name) + '</span>';
-      h += '<button class="tok t-' + (t.type || 'x') + ' ' + (t.cls || '') + (t.type ? '' : ' empty') + '" style="left:' + x.toFixed(2) + '%;top:' + y.toFixed(2) + '%;width:' + size + 'cqw;height:' + size + 'cqw" data-act="' + o.act + '" data-seat="' + t.seat + '" aria-label="' + esc(t.name) + '">' +
+      // where a crowded seat's small marks go (see .ring.crowd in styles.css): lft = left half of the
+      // circle, vt = near the top or bottom (its neighbours sit beside it, not above and below)
+      h += '<button class="tok t-' + (t.type || 'x') + ' ' + (t.cls || '') + (t.type ? '' : ' empty') + (Math.cos(a) < -0.05 ? ' lft' : Math.cos(a) > 0.7 ? ' rgt' : '') + (Math.abs(Math.sin(a)) > 0.8 ? ' vt' : '') + '" style="left:' + x.toFixed(2) + '%;top:' + y.toFixed(2) + '%;width:' + size + 'cqmin;height:' + size + 'cqmin" data-act="' + o.act + '" data-seat="' + t.seat + '" aria-label="' + esc(t.name) + '">' +
         '<span class="ic">' + t.ic + '</span>' +
         (crowd ? '<span class="lb">' + labels + '</span>' : labels) +
         (t.badge ? '<span class="badge" style="background:' + t.badge.color + '">' + t.badge.text + '</span>' : '') +
@@ -155,7 +159,7 @@
       // reminder tokens lie just inside the character token, towards the middle, as in a real Grimoire
       if (t.rems) {
         const c = Math.abs(Math.cos(a)), r = 27.5 - 8 * Math.abs(Math.sin(a)); // clear of the name under a top seat, of the token at the sides
-        h += '<span class="reminders' + (c > 0.5 ? ' col' : '') + '" style="left:' + (50 + r * Math.cos(a)).toFixed(2) + '%;top:' + (50 + r * Math.sin(a)).toFixed(2) + '%">' + t.rems + '</span>';
+        h += '<span class="reminders' + (c > 0.8 ? ' col' : '') + '" style="left:' + (50 + r * Math.cos(a)).toFixed(2) + '%;top:' + (50 + r * Math.sin(a)).toFixed(2) + '%">' + t.rems + '</span>';
       }
     }
     h += '<div class="center">' + (o.center || '') + '</div></div>';
@@ -447,7 +451,7 @@
     let team = '';
     if (v.me.team) team = '<div class="tiny" style="color:var(--min)">Evil team: ' + v.me.team.filter(x => x.seat !== me).map(x => esc(g.names[x.seat]) + (x.demon ? ' (Demon)' : '')).join(', ') + (v.me.bluffs ? ' · Bluffs: ' + v.me.bluffs.map(rname).join(', ') : '') + '</div>';
     if (v.me.team) team = team.replace('class="tiny" style="color:var(--min)"', 'class="tiny evilteam"');
-    const card = '<div class="rolecard">' + ctok(r.id) + '<div class="grow"><div class="ttl">You are the ' + r.name + '</div><div class="ab">' + esc(r.ability) + '</div>' + team + '</div></div>';
+    const card = '<div class="rolecard" data-act="play-card" role="button" aria-label="Your character">' + ctok(r.id) + '<div class="grow"><div class="ttl">You are the ' + r.name + '</div><div class="ab">' + esc(r.ability) + '</div>' + team + '</div></div>';
 
     // actions
     let act = '';
@@ -495,16 +499,20 @@
     // the table from your chair: the Town Square in the middle, your character sheet in front of you,
     // the Storyteller's prompts and your notes beside it
     if (!root.querySelector('#pCard')) {
-      root.innerHTML = '<div class="split show-circle"><div class="ringcol"><div id="pRing" style="display:contents"></div><div id="pCard"></div></div>' +
-        '<div class="side playside"><div id="pAct" style="display:contents"></div><div class="scroll grow feed" id="feed"></div></div></div>';
+      // phone: one column (circle, sheet, prompt, notes); laptop and phone sideways: the circle fills
+      // the height on the left, sheet + prompt + notes beside it
+      root.innerHTML = '<div class="split show-circle"><div class="ringcol"><div id="pRing" style="display:contents"></div></div>' +
+        '<div class="side playside"><div id="pCard"></div><div id="pAct" style="display:contents"></div><div class="scroll grow feed" id="feed"></div></div></div>';
     }
     root.classList.toggle('is-night', !over && g.stage === 'night');
     const put = (id, html) => { const el = document.getElementById(id); if (el._h !== html) { el.innerHTML = html; el._h = html; return true; } return false; };
+    // the notes stay scrolled to the newest line, also when the prompt above them changes height
+    const fd = $('#feed'), atEnd = !fd._h || fd.scrollHeight - fd.scrollTop - fd.clientHeight < 12;
     put('pCard', card);
     const picking = !over && ((g.stage === 'night' && v.pending) || (g.stage !== 'night' && !g.day.vote && P.mode));
     put('pRing', ring({ n: g.n, tokens, center, act: 'pseat', me, hand: !over && g.day && g.day.vote ? g.day.vote.on : -1, cls: (over ? '' : g.stage === 'night' ? 'night' : 'day') + (picking ? ' picking' : '') }));
     put('pAct', act);
-    if (put('feed', feed.join(''))) { const f = $('#feed'); f.scrollTop = f.scrollHeight; }
+    if (put('feed', feed.join('')) || atEnd) { fd.scrollTop = fd.scrollHeight; requestAnimationFrame(() => { fd.scrollTop = fd.scrollHeight; }); }
     fxDrive(SRC, SRC.online ? 'on:' + (ON.snap.code || '') : 'local:' + P.fxId);
   }
   // ------------------------------------------------------------------ online room (shared _online layer)
@@ -643,7 +651,7 @@
     }));
     // the three bluffs, shown as character tokens the way the Storyteller shows them to the Demon
     const center = '<div class="lbl">Bluffs</div><div class="bluffs">' + st.bluffs.map(id => '<span class="bt">' + ctok(id) + esc(rname(id)) + '</span>').join('') + '</div>';
-    return '<div style="display:flex;flex-direction:column;gap:8px;height:100%;min-height:360px">' + ring({ n: st.seats.length, tokens, center, act: 'gseat', cls: 'grim', box: 'grimbox' }) + '<div class="small muted" style="text-align:center">Tap a seat for reminders, death and role changes.</div></div>';
+    return '<div class="grimcol">' + ring({ n: st.seats.length, tokens, center, act: 'gseat', cls: 'grim', box: 'grimbox', oval: true }) + '<div class="small muted grimhint">Tap a seat for reminders, death and role changes.</div></div>';
   }
   // a reminder token: its character's symbol plus the word ("Poisoner: Poisoned" -> poison symbol, "Poisoned")
   function remTok(lab) {
@@ -1098,6 +1106,12 @@
     'play-vote'(d) { myAct({ type: 'vote', yes: d.yes === '1' }); },
     'play-mode'(d) { src().ui.mode = d.m || null; renderPlay(); },
     'play-end'() { myAct({ type: 'endDay' }); },
+    // the phone shows the sheet as a slim strip; a tap reads the whole of it
+    'play-card'() {
+      const c = document.querySelector('#pCard .rolecard'); if (!c) return;
+      const ttl = c.querySelector('.ttl'), rest = [...c.querySelectorAll('.ab, .evilteam')].map(e => '<p style="margin:0 0 10px;line-height:1.5"' + (e.classList.contains('evilteam') ? ' class="c-D"' : '') + '>' + e.innerHTML + '</p>').join('');
+      openSheet({ title: ttl ? ttl.innerHTML : '', body: () => rest, foot: () => '<button class="btn" data-act="sheet-close">Close</button>' });
+    },
     'play-share'() { const v = src().v; myAct({ type: 'share', info: myUnshared(v) }); },
     'play-claim'() {
       const S = src(), v = S.v;

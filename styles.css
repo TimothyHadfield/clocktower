@@ -99,6 +99,9 @@ h2.sec { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 
 }
 .ringwrap { flex: 1; min-height: 0; display: grid; place-items: center; position: relative; }
 .ring { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); container-type: size; }
+/* the Grimoire box is not round: its tokens lie in an oval that fills the box (sizes inside the ring
+   are in cqmin, so a round ring is unchanged and an oval sizes by its short side) */
+.ring.oval { width: 100cqw; height: 100cqh; }
 .ringbox { container-type: size; flex: 1; min-height: 160px; width: 100%; position: relative; }
 /* the Town Square board: a round dark board with a gold rim and clock ticks */
 .ring::before { content: ""; position: absolute; inset: 9%; border-radius: 50%; z-index: -1;
@@ -123,9 +126,9 @@ h2.sec { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 
 .tok.t-T { color: var(--ink-T); } .tok.t-O { color: var(--ink-O); }
 .tok.t-M { color: var(--ink-M); } .tok.t-D { color: var(--ink-D); }
 /* labels scale with the circle so they stay readable on a laptop */
-.tok .nm { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 5px; font-size: clamp(11.5px, 2.5cqw, 16px); font-weight: 650; color: #f6efe0; white-space: nowrap; max-width: max(90px, 24cqw); overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000, 0 0 6px #000; }
-.tok .cl { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 2px; font-size: clamp(10px, 2.1cqw, 14px); font-weight: 600; color: #e8dcc0; white-space: pre; text-align: center; line-height: 1.2; max-width: max(96px, 23cqw); overflow: hidden; text-overflow: ellipsis; padding: 0 4px; border-radius: 6px; background: rgba(20,12,6,.72); }
-.tok .badge { position: absolute; top: 72%; left: calc(100% - 10px); transform: translateY(-50%); padding: 1px .4em; border-radius: 1em; font-size: clamp(11px, 2.2cqw, 15px); font-weight: 800; color: #0b0d12; text-align: center; box-shadow: 0 0 0 2px #1b120b, 0 2px 3px rgba(0,0,0,.6); font-variant-numeric: tabular-nums; }
+.tok .nm { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 5px; font-size: clamp(11.5px, 2.5cqmin, 16px); font-weight: 650; color: #f6efe0; white-space: nowrap; max-width: max(90px, 24cqmin); overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000, 0 0 6px #000; }
+.tok .cl { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 2px; font-size: clamp(10px, 2.1cqmin, 14px); font-weight: 600; color: #e8dcc0; white-space: pre; text-align: center; line-height: 1.2; max-width: max(96px, 23cqmin); overflow: hidden; text-overflow: ellipsis; padding: 0 4px; border-radius: 6px; background: rgba(20,12,6,.72); }
+.tok .badge { position: absolute; top: 72%; left: calc(100% - 10px); transform: translateY(-50%); padding: 1px .4em; border-radius: 1em; font-size: clamp(12px, 2.2cqmin, 15px); font-weight: 800; color: #0b0d12; text-align: center; box-shadow: 0 0 0 2px #1b120b, 0 2px 3px rgba(0,0,0,.6); font-variant-numeric: tabular-nums; }
 .tok.me { box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 0 0 3px rgba(240,179,84,.85), 0 0 14px rgba(240,179,84,.35), var(--edge); }
 .tok.sel { box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 0 0 4px rgba(110,168,254,.8), 0 0 16px rgba(110,168,254,.45), var(--edge); transform: translate(-50%, -50%) scale(1.06); }
 .tok.empty .ic { opacity: .32; }
@@ -137,16 +140,31 @@ h2.sec { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 
 .tok.dead.me { box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), 0 0 0 3px rgba(240,179,84,.7), var(--edge-dark); }
 /* 11+ seats: the claim sits on the token's lower edge (like the name printed on a real token) and the
    player's name right under it, so every label stays inside its own seat's slice of the circle */
-.ring.crowd { --clf: clamp(8.5px, 1.95cqw, 13px); --nmf: clamp(9.5px, 2.25cqw, 15px); }
+.ring.crowd { --clf: clamp(10px, 1.95cqmin, 13px); --nmf: clamp(10.5px, 2.25cqmin, 15px); }
 .ring.crowd .tok .lb { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: calc(var(--clf) * -.7); display: flex; flex-direction: column; align-items: center; pointer-events: none; z-index: 1; }
 .ring.crowd .tok .lb .cl, .ring.crowd .tok .lb .nm { position: static; transform: none; margin: 0; max-width: var(--lw); }
 .ring.crowd .tok .lb .cl { max-width: calc(var(--lw) * 1.3); }
 .ring.crowd .tok .cl { font-size: var(--clf); line-height: 1.12; padding: 0 3px; border-radius: 5px; background: rgba(20,12,6,.85); }
 .ring.crowd .tok .nm { font-size: var(--nmf); line-height: 1.12; }
-.ring.crowd .tok .badge { top: 12%; left: calc(100% - 13px); padding: 0 .3em; font-size: clamp(9px, 1.85cqw, 13px); }
+/* crowded: each seat's small marks go where no neighbour's name can be. Seats down the sides (their
+   neighbours above and below): the odds badge (alive) or the shroud (dead) on the outer side half way
+   down, the vote token on the outer top corner, a raised hand on the inner top corner. Seats near the
+   top and bottom (.vt, neighbours beside them): badge or shroud above the token, the hand on the outer
+   side. Mirrored on the left half of the circle (.lft). */
+/* the seat at the far right keeps its badge on the inner side, so it never runs off the screen */
+.ring:not(.crowd) .tok.rgt .badge { left: auto; right: -8px; }
+.ring.crowd .tok .badge { top: 50%; left: calc(100% - 7px); padding: 0 .3em; font-size: clamp(11px, 1.85cqmin, 13px); }
+.ring.crowd .tok.lft .badge { left: auto; right: calc(100% - 7px); }
 .ring.crowd .tok .hand { top: -10%; right: auto; left: -14%; width: 44%; min-width: 13px; }
-.ring.crowd .tok .shroud { bottom: auto; top: -6px; }
+.ring.crowd .tok.lft .hand { left: auto; right: -14%; }
+.ring.crowd:not(.grim) .tok .shroud { bottom: auto; top: 50%; left: auto; right: -12px; transform: translateY(-50%); }
+.ring.crowd:not(.grim) .tok.lft .shroud { right: auto; left: -12px; }
 .ring.crowd .tok .ghost { bottom: auto; top: -4px; }
+.ring.crowd .tok.lft .ghost { right: auto; left: -5px; }
+.ring.crowd .tok.vt .badge, .ring.crowd .tok.vt.lft .badge { top: 0; left: 50%; right: auto; transform: translate(-50%, -78%); }
+.ring.crowd:not(.grim) .tok.vt .shroud, .ring.crowd:not(.grim) .tok.vt.lft .shroud { top: 0; left: 50%; right: auto; transform: translate(-50%, -70%); }
+.ring.crowd .tok.vt .hand { top: 28%; left: auto; right: -16%; } /* no transform: the hand pops on a yes vote */
+.ring.crowd .tok.vt.lft .hand { right: auto; left: -16%; }
 /* when you must pick a player, the living seats glow to say "tap me" */
 .ring.picking .tok:not(.dead):not(.sel):not(.me) { animation: pickme 1.6s ease-in-out infinite; }
 @keyframes pickme { 0%, 100% { box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 0 0 0 rgba(110,168,254,0), var(--edge); } 50% { box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 0 0 4px rgba(110,168,254,.45), var(--edge); } }
@@ -163,23 +181,23 @@ h2.sec { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 
 .ring .reminders.col { flex-direction: column; align-items: center; }
 .ring .reminders { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: flex-start; gap: 3px; pointer-events: none; z-index: 2; }
 /* reminder token: a small round parchment token with its character's symbol, the word beside it */
-.rem { display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: clamp(8.5px, 1.9cqw, 12px); font-weight: 700; line-height: 1.05; white-space: nowrap; color: #f1e6cc; text-shadow: 0 1px 2px #000, 0 0 4px #000; }
-.rem i { width: clamp(20px, 6.4cqw, 36px); aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%;
+.rem { display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: clamp(10px, 1.9cqmin, 12px); font-weight: 700; line-height: 1.05; white-space: nowrap; color: #f1e6cc; text-shadow: 0 1px 2px #000, 0 0 4px #000; }
+.rem i { width: clamp(20px, 6.4cqmin, 36px); aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%;
   background: radial-gradient(circle at 38% 30%, #fbf4e2, var(--parch) 45%, var(--parch-2)); box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 1px 0 #8a7650, 0 2px 0 #66563a, 0 3px 4px rgba(0,0,0,.5); }
 .rem i svg { width: 62%; height: 62%; stroke-width: 5; }
 .rem i.c-T, .rem i.c-O { color: var(--ink-T); } .rem i.c-M, .rem i.c-D { color: var(--ink-M); }
 /* the clock hand points at the player on trial */
-.ring .clockhand { position: absolute; left: 50%; top: 50%; width: 2.2cqw; height: 31%; margin-left: -1.1cqw; transform-origin: 50% 100%; translate: 0 -100%; pointer-events: none; z-index: 0; opacity: .85; }
+.ring .clockhand { position: absolute; left: 50%; top: 50%; width: 2.2cqmin; height: 31%; margin-left: -1.1cqmin; transform-origin: 50% 100%; translate: 0 -100%; pointer-events: none; z-index: 0; opacity: .85; }
 .ring .clockhand svg { width: 100%; height: 100%; }
 /* the hand starts outside the words in the middle, so it never covers the nominee's name */
 .ring .clockhand { -webkit-mask: linear-gradient(#000 52%, transparent 62%); mask: linear-gradient(#000 52%, transparent 62%); }
 .center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 46%; text-align: center; pointer-events: auto; z-index: 1; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
-.center .lbl { font-size: clamp(11.5px, 2.3cqw, 15px); color: #c9b48a; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
-.center .big { font-size: clamp(18px, 7cqw, 52px); font-weight: 800; letter-spacing: -.02em; line-height: 1.1; margin: 2px 0; overflow-wrap: anywhere; color: #f6efe0; }
+.center .lbl { font-size: clamp(11.5px, 2.3cqmin, 15px); color: #c9b48a; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
+.center .big { font-size: clamp(18px, 7cqmin, 52px); font-weight: 800; letter-spacing: -.02em; line-height: 1.1; margin: 2px 0; overflow-wrap: anywhere; color: #f6efe0; }
 .center .big.c-T { color: var(--tf); } .center .big.c-D { color: #ff6a5e; }
-.center .sub { font-size: clamp(12px, 2.4cqw, 16px); color: #c9b48a; }
-.center .small { font-size: clamp(13px, 2.6cqw, 17px); }
-.center .pct { font-size: clamp(14px, 4.5cqw, 28px); font-weight: 800; }
+.center .sub { font-size: clamp(12px, 2.4cqmin, 16px); color: #c9b48a; }
+.center .small { font-size: clamp(13px, 2.6cqmin, 17px); }
+.center .pct { font-size: clamp(14px, 4.5cqmin, 28px); font-weight: 800; }
 /* night and day light the board, so the phase reads at a glance */
 .ring.night::before { background: radial-gradient(circle at 50% 42%, #22283a 0%, #181b28 58%, #0f111a 100%); }
 .ring.day::before { background: radial-gradient(circle at 50% 42%, #3b2b1c 0%, #2a1d12 58%, #1a110a 100%); }
@@ -202,8 +220,8 @@ h2.sec { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 
 .ring.grim .tok .shroud svg { width: 62%; height: auto; }
 .ring.grim .center { width: 34%; }
 .bluffs { display: flex; justify-content: center; gap: 6%; margin-top: 4px; }
-.bluffs .bt { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 30%; font-size: clamp(9.5px, 1.9cqw, 13px); color: #e8dcc0; line-height: 1.15; }
-.bluffs .bt .ctok { width: min(11cqw, 100%); }
+.bluffs .bt { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 30%; font-size: clamp(9.5px, 1.9cqmin, 13px); color: #e8dcc0; line-height: 1.15; }
+.bluffs .bt .ctok { width: min(11cqmin, 100%); }
 
 /* ---------- lists ---------- */
 .list { display: flex; flex-direction: column; gap: 2px; }
@@ -329,21 +347,65 @@ h2.sec { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 
 .tok.flipping { animation: tokflip .55s cubic-bezier(.3,.7,.3,1); }
 #v-play .rolecard .ctok .ic { width: 60%; height: 60%; }
 @media (min-width: 900px) { #v-play .rolecard .ctok { width: 58px; } }
-/* phone: the sheet stays a slim strip so the circle keeps its room */
+#v-play .rolecard { cursor: pointer; }
+.grimcol { display: flex; flex-direction: column; gap: 8px; height: 100%; min-height: 360px; }
+.grimhint { text-align: center; }
+/* The circle is the game, so it gets the room first.
+   Phone: one column: the circle as wide as the screen, then your sheet as a slim strip (tap it to read
+   all of it), the Storyteller's prompt and your notes (which take whatever height is left).
+   Laptop and phone sideways: the circle fills the height on the left; sheet, prompt and notes beside it. */
+#v-play, #v-town { container-type: size; }
 @media (max-width: 899px) {
-  #v-play .ringcol { gap: 8px; }
-  #v-play .rolecard { padding: 5px 8px 5px 6px; gap: 8px; }
-  #v-play .rolecard .ctok { width: 40px; }
+  #v-play .split { gap: 6px; }
+  #v-play .split > .ringcol, #v-play .split > .playside { display: contents; }
+  #v-play .ringbox { flex: 0 1 auto; aspect-ratio: 1; min-height: 150px; }
+  #v-play #pCard, #v-play .votebox, #v-play .actbar, #v-play .banner, #v-play .hist { flex: 0 0 auto; }
+  #v-play .feed { flex: 1 0 64px; min-height: 64px; padding-top: 4px; }
+  #v-play .rolecard { padding: 4px 8px 4px 6px; gap: 8px; }
+  #v-play .rolecard .ctok { width: 36px; }
   #v-play .rolecard .ttl { font-size: 14px; line-height: 1.2; }
-  #v-play .rolecard .ab { font-size: 11.5px; line-height: 1.25; }
-  #v-play .playside { max-height: 31%; }
-  #v-play .feed { padding-top: 4px; }
+  #v-play .rolecard .ab, #v-play .rolecard .evilteam { font-size: 11.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #v-play .rolecard::after { content: '\203A'; margin-left: auto; padding: 0 2px 2px 4px; font-size: 24px; line-height: 1; color: #6b5a42; }
+  #v-play .votebox { padding: 6px 8px 6px 10px; }
 }
-/* phone turned sideways: the circle and your sheet on the left, prompts and notes on the right */
 @media (max-width: 899px) and (orientation: landscape) and (max-height: 520px) {
-  #v-play .split { flex-direction: row; }
-  #v-play .split > .ringcol { flex: 1.15; min-width: 0; }
-  #v-play .playside { flex: 1; max-height: none; min-width: 0; }
+  #v-play .split, #v-town .split { display: grid; grid-template-columns: minmax(0, min(100cqh, 58cqw)) minmax(0, 1fr); gap: 8px 10px; }
+  #v-play .split { grid-template-rows: minmax(0, 1fr); }
+  #v-play .split > .ringcol, #v-play .split > .playside { display: flex; min-width: 0; }
+  #v-play .ringbox { flex: 1; aspect-ratio: auto; min-height: 0; }
+  #v-play .playside { max-height: none; gap: 6px; }
+  #v-play .feed { flex: 1 1 0; min-height: 40px; }
+  /* Town sideways: circle left, the buttons and the log right (no Circle/Log switch needed) */
+  #v-town .townbar { display: none; }
+  #v-town .split { grid-template-rows: auto minmax(0, 1fr); }
+  #v-town .split > .ringcol { display: contents; }
+  #v-town .split > .nb-log { display: flex; grid-column: 2; grid-row: 2; }
+  #v-town .ringbox { grid-column: 1; grid-row: 1 / 3; min-height: 0; }
+  #v-town .actions { grid-column: 2; grid-row: 1; }
+  /* Grimoire sideways: the box fits the screen, no hint line */
+  .grimcol { min-height: 0; }
+  .grimhint { display: none; }
+  /* Storyteller sideways: Setup / Night / Grimoire stacked on the left so the box gets the full height */
+  #v-st.on { flex-direction: row; }
+  #v-st > .row { flex-direction: column; align-items: stretch; }
+  #v-st > .row .seg { flex-direction: column; }
+  #v-st > .split { min-width: 0; }
+}
+@media (min-width: 900px) {
+  #v-play .rolecard .ctok { width: 58px; }
+  #v-play .split, #v-town .split { display: grid; grid-template-columns: minmax(0, min(100cqh, calc(100cqw - 356px))) minmax(340px, 1fr); gap: 12px 16px; }
+  #v-play .split { grid-template-rows: minmax(0, 1fr); }
+  #v-play .split > .side, #v-town .split > .side { max-width: none; }
+  #v-town .split { grid-template-rows: auto minmax(0, 1fr); }
+  #v-town .split > .ringcol { display: contents; }
+  #v-town .ringbox { grid-column: 1; grid-row: 1 / 3; }
+  #v-town .actions { grid-column: 2; grid-row: 1; }
+  #v-town .split > .nb-log { grid-column: 2; grid-row: 2; }
+  /* Grimoire: the night sheet beside the box takes less, the box more */
+  #v-st .split > .side { flex: 0 0 360px; }
+}
+@media (max-width: 899px) and (max-height: 600px) and (orientation: portrait) {
+  #v-play .feed { flex-basis: 48px; min-height: 48px; }
 }
 
 /* ---------- laptop ---------- */
