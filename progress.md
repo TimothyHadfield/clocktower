@@ -72,6 +72,7 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 - Phone-first dark look with the Hub tokens. No page scroll on main screens. Labels 1–3 words, with explanations behind a "?". $0.
 
 ## Traps
+- **online.js cache stamp (2026-10-27):** every import of `js/online.js` uses `?v=a3d0418b`, the `_online` content stamp. After a re-copy: put the new stamp from `node ../_online/tools/stamp.mjs` there, bump the importing file's `?v=` (and pwa.js `data-version`), then `node ../_online/tools/stamp.mjs --check .` must say OK.
 - `js/online.js` is a copy. Re-copy it from `../_online/online.js`; never edit it.
 - The solver can take 1–3 s at 15 players, and runs in a Web Worker. The speed test fails when the machine is busy: use `CT_SLOW=1`.
 - `.view` must not animate (phone-view screenshots caught a blank frame, and Tim's rule is "nothing jumps").
