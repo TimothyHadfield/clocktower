@@ -5,7 +5,7 @@ Read this file, then CLAUDE.md, then `docs/rules-check.md` and `docs/ideas.md`. 
 Sounds/animations: `js/fx.js` (byte copy of `../_fx/fx.js`, never edit; re-copy), `js/ctfx.js` (game events → sounds/animations, pure `events(prev, cur)`).
 Table look: `css/table.css` + `js/table.js` (byte copies of `../_table/`, never edit; re-copy). The game's own table styling is in `styles.css` ("the seat circle" and "Play: your place at the table" sections).
 Kits (copies, never edit; re-copy): `js/coach.js`+`css/coach.css` (_coach 1.0.0), `js/profile.js`+`css/profile.css` (_profile 1.1.0), `js/pwa.js`+`sw.js`+`tools/pwa-check.mjs`+`tools/make-icons.mjs` (_pwa 1.2.0). Game side: `js/ctcoach.js` (guided game + rules sheet), `js/ctprofile.js` (levels, achievements, Daily, result).
-Last updated: 2026-10-27 (improvement pass: guided game, rules sheet, My stats + Daily, Undo, story, offline install, 5–15 players, art + key moments; build `?v=11`).
+Last updated: 2026-10-27 (improvement pass: guided game, rules sheet, My stats + Daily, Undo, story, offline install, 5–15 players, art + key moments; build `?v=12`).
 
 ## Goal right now
 Tim: "could you also explore blood on the clocktower?" Phase 2: "build regular play online with a computer or other online players for all the games … that match exactly the play of the in-person game … Really work on the webdesign … art … make sure that everything works properlly without errors … get everything right like rules … specific numbers."
@@ -74,7 +74,7 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 - Phone-first dark look with the Hub tokens. No page scroll on main screens. Labels 1–3 words, with explanations behind a "?". $0.
 
 ## Traps
-- **Build stamp (10-27):** all `?v=` in index.html, pwa.js `data-version`, `WV` in app.js and the `importScripts` stamps in `js/worker.js` must move together (now 11). The online.js stamp is separate (next line).
+- **Build stamp (10-27):** all `?v=` in index.html, pwa.js `data-version`, `WV` in app.js and the `importScripts` stamps in `js/worker.js` must move together (now 12). The online.js stamp is separate (next line).
 - `state.grim` (engine) is the Storyteller's record (poison, protect, attack + result, info with ok/drunk, star pass). `view()` shows it only to `st` or after game over. Never add `rnd()` calls around it (seeded replays).
 - Guided game: steps with `hold: true` make `tick()` wait, but only while `tour.active` and the step's `when()` is true (`current()` still returns the last step after the tour ends). Night 1 resolves inside createGame, so the "Night" step comes after "End the day".
 - `window.__ct = { state, src, H, tour, E }` is a test hook (tut/ui/pwa-check scripts drive the game through `H`). Keep it.

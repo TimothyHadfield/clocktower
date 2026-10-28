@@ -124,7 +124,7 @@
 
   // ------------------------------------------------------------------ solver worker
   // WV: the worker's build stamp (same as its importScripts in js/worker.js)
-  const WV = 11;
+  const WV = 12;
   let worker = null;
   try { worker = new Worker('js/worker.js?v=' + WV); } catch (e) { worker = null; }
   // the home-screen app's offline copy: the page's own crawl never sees what the worker fetches, so ask
@@ -860,6 +860,13 @@
   // and so is each tab change
   let sheetDepth = 0, skipPop = 0;
   function histPush(o) { try { history.pushState(o, ''); } catch (e) { /* ignore */ } }
+  // the Rules sheet and My stats (shared kits) are closed by Back too, so each holds one history entry:
+  // a sheet open under them hands its entry over (a push right after history.go() would be undone by it)
+  function kitHist() {
+    const had = sheet ? sheetDepth : 0;
+    closeSheet(); sheetDepth = 0;
+    if (had > 1) { skipPop++; try { history.go(-(had - 1)); } catch (e) { skipPop--; } } else if (!had) histPush({ ct: 'kit' });
+  }
   function openSheet(s) { if (!sheet || s.prev) { histPush({ ct: 'sheet' }); sheetDepth++; } sheet = s; drawSheet(); }
   function closeSheet() { sheet = null; $('#sheetRoot').innerHTML = ''; }
   // closed by a button, a tap outside or Escape: drop its history entries too
@@ -1221,7 +1228,7 @@
     'practice-reveal'() { const P = state.practice; const d = P.truth.roles.indexOf('imp'); P.oddsAtReveal = nbOdds && !nbOdds.error ? nbOdds.pDemon[d] : 0; P.revealed = true; save(); render(); },
     'practice-exit'() { const P = state.practice; state.nb = P.saved || defNb(8); state.practice = null; save(); render(); },
     // kits: My stats, Daily, rules, guided game, Undo, the story
-    stats() { const pf = PF(); if (pf) { dismissSheet(); pf.openPanel(); } },
+    stats() { const pf = PF(); if (pf) { kitHist(); pf.openPanel(); } },
     daily() {
       const pf = PF(); if (!pf) return;
       if (pf.isOpen()) pf.closePanel();
@@ -1230,7 +1237,7 @@
       if (ON) { toast('Leave the room first.'); return; }
       dismissSheet(); startPlay('daily');
     },
-    rules() { const co = CO(); if (!co) return; dismissSheet(); co.rules(CC.rules()); },
+    rules() { const co = CO(); if (!co) return; kitHist(); co.rules(CC.rules()); },
     guided() { if (ON) { toast('Leave the room first.'); return; } dismissSheet(); startPlay('tutorial'); },
     'play-undo'() {
       const P = state.play;
@@ -1252,10 +1259,13 @@
     'play-start'() { startPlay('normal'); },
     'play-new'() { state.play = null; clearTimeout(playTimer); save(); renderPlay(); },
     'play-quit'() {
+      // a quit that counted as a loss can't be taken back (the loss is already in My stats)
+      const counted = quitCounts();
       abandonPlay();
       const old = state.play;
       state.play = null; clearTimeout(playTimer); dismissSheet(); save(); render();
-      toast('Game ended.', () => { state.play = old; save(); render(); requestMine(); scheduleTick(400); });
+      if (counted) toast('Game ended.');
+      else toast('Game ended.', () => { state.play = old; save(); render(); requestMine(); scheduleTick(400); });
     },
     'set-leave'() { dismissSheet(); H['on-leave'](); },
     'on-create'() { onCreate(); },
