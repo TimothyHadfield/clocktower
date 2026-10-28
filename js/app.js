@@ -125,7 +125,7 @@
   // ------------------------------------------------------------------ solver worker
   // WV: the worker's build stamp (same as its importScripts in js/worker.js and data-extra on the pwa.js tag,
   // which keeps the worker and its scripts in the home-screen app's offline copy)
-  const WV = 14;
+  const WV = 15;
   let worker = null;
   try { worker = new Worker('js/worker.js?v=' + WV); } catch (e) { worker = null; }
   const pending = {};
@@ -195,7 +195,9 @@
   }
 
   // ------------------------------------------------------------------ rendering helpers
-  function ring(o) {
+  // The circle in parts, so the Play table can patch only what changed (see patchRing): a 15-seat
+  // circle rebuilt whole on every computer move cost 200-450 ms on a slow phone.
+  function ringParts(o) {
     // o: { n, tokens:[{seat, cls, ic, type, name, cl, badge, extra}], center, me (seat drawn at the near edge), hand (seat the clock hand points at), box }
     const n = o.n;
     // from your chair: your seat sits at the bottom, the others round the far side in seat order
@@ -206,35 +208,75 @@
     // sizes are in cqmin of the ring (its shorter side): the same as before on the round Town Square,
     // and an oval Grimoire (o.oval: the ring fills its whole box) sizes tokens by its short side
     const size = crowd ? Math.min(11.5, 128 / n) : Math.min(15, 150 / n);
-    let h = '<div class="ring ' + (o.cls || '') + (crowd ? ' crowd' : '') + (o.oval ? ' oval' : '') + '" style="--ts:' + size + 'cqmin;--lw:' + (crowd && o.oval ? 'max(' + (200 / n).toFixed(1) + 'cqmin, min(' + (150 / n).toFixed(1) + 'cqw, 22cqmin))' : (crowd ? (200 / n).toFixed(1) : 24) + 'cqmin') + '">';
-    if (o.sky) h += skyHTML();
-    if (o.hand != null && o.hand >= 0) h += '<span class="clockhand" style="rotate:' + (deg(o.hand) + 90).toFixed(1) + 'deg">' + CLOCKHAND + '</span>';
+    const P = {
+      box: o.box || '',
+      cls: 'ring ' + (o.cls || '') + (crowd ? ' crowd' : '') + (o.oval ? ' oval' : ''),
+      style: '--ts:' + size + 'cqmin;--lw:' + (crowd && o.oval ? 'max(' + (200 / n).toFixed(1) + 'cqmin, min(' + (150 / n).toFixed(1) + 'cqw, 22cqmin))' : (crowd ? (200 / n).toFixed(1) : 24) + 'cqmin'),
+      sky: !!o.sky,
+      hand: o.hand != null && o.hand >= 0 ? '<span class="clockhand" style="rotate:' + (deg(o.hand) + 90).toFixed(1) + 'deg">' + CLOCKHAND + '</span>' : '',
+      toks: [], center: o.center || '',
+    };
     for (const t of o.tokens) {
       const a = deg(t.seat) * Math.PI / 180;
       const x = 50 + 39 * Math.cos(a), y = 50 + 37.5 * Math.sin(a);
       const labels = (t.cl ? '<span class="cl">' + esc(t.cl) + '</span>' : '') + '<span class="nm">' + esc(t.name) + '</span>';
       // where a crowded seat's small marks go (see .ring.crowd in styles.css): lft = left half of the
       // circle, vt = near the top or bottom (its neighbours sit beside it, not above and below)
-      h += '<button class="tok t-' + (t.type || 'x') + ' ' + (t.cls || '') + (t.type ? '' : ' empty') + (Math.cos(a) < -0.05 ? ' lft' : Math.cos(a) > 0.7 ? ' rgt' : '') + (Math.abs(Math.sin(a)) > 0.8 ? ' vt' : '') + '" style="left:' + x.toFixed(2) + '%;top:' + y.toFixed(2) + '%;width:' + size + 'cqmin;height:' + size + 'cqmin" data-act="' + o.act + '" data-seat="' + t.seat + '" aria-label="' + esc(t.name) + '">' +
+      let h = '<button class="tok t-' + (t.type || 'x') + ' ' + (t.cls || '') + (t.type ? '' : ' empty') + (Math.cos(a) < -0.05 ? ' lft' : Math.cos(a) > 0.7 ? ' rgt' : '') + (Math.abs(Math.sin(a)) > 0.8 ? ' vt' : '') + '" style="left:' + x.toFixed(2) + '%;top:' + y.toFixed(2) + '%;width:' + size + 'cqmin;height:' + size + 'cqmin" data-act="' + o.act + '" data-seat="' + t.seat + '" aria-label="' + esc(t.name) + '">' +
         '<span class="ic">' + t.ic + '</span>' +
         (crowd ? '<span class="lb">' + labels + '</span>' : labels) +
         (t.badge ? '<span class="badge" style="background:' + t.badge.color + '">' + t.badge.text + '</span>' : '') +
-        (t.dead ? '<span class="shroud">' + art.roleIcon('dead') + '</span>' : '') +
+        (t.dead ? '<span class="shroud">' + DEADIC + '</span>' : '') +
         (t.extra || '') + '</button>';
       // reminder tokens lie just inside the character token, towards the middle, as in a real Grimoire
       if (t.rems) {
         const c = Math.abs(Math.cos(a)), r = 27.5 - 8 * Math.abs(Math.sin(a)); // clear of the name under a top seat, of the token at the sides
         h += '<span class="reminders' + (c > 0.8 ? ' col' : '') + '" style="left:' + (50 + r * Math.cos(a)).toFixed(2) + '%;top:' + (50 + r * Math.sin(a)).toFixed(2) + '%">' + t.rems + '</span>';
       }
+      P.toks.push(h);
     }
-    h += '<div class="center">' + (o.center || '') + '</div></div>';
-    return '<div class="ringbox ' + (o.box || '') + '">' + h + '</div>';
+    return P;
+  }
+  function ringHTML(P) {
+    return '<div class="ringbox ' + P.box + '"><div class="' + P.cls + '" style="' + P.style + '">' + (P.sky ? skyHTML() : '') + P.hand + P.toks.join('') +
+      '<div class="center">' + P.center + '</div></div></div>';
+  }
+  function ring(o) { return ringHTML(ringParts(o)); }
+  // Play: change only the tokens, centre, hand and ring classes that differ from what is on screen
+  // (no reminders in Play, so each token is exactly one <button>). Anything structural rebuilds.
+  // Returns true when something changed.
+  function patchRing(el, P) {
+    const key = P.box + '|' + P.style + '|' + P.sky + '|' + P.toks.length + '|' + (window.TABLE && window.TABLE.animOn() ? 1 : 0);
+    const O = el._ring;
+    const ringEl = O && el.querySelector('.ring');
+    if (!O || O.key !== key || !ringEl || ringEl.parentNode.parentNode !== el) {
+      el.innerHTML = ringHTML(P);
+      el._ring = Object.assign({ key }, P, { toks: P.toks.slice() });
+      return true;
+    }
+    let ch = false;
+    if (O.cls !== P.cls) { ringEl.className = P.cls; O.cls = P.cls; ch = true; }
+    if (O.hand !== P.hand) {
+      const old = ringEl.querySelector(':scope > .clockhand');
+      if (old) old.remove();
+      if (P.hand) { const first = ringEl.querySelector(':scope > .tok') || ringEl.querySelector(':scope > .center'); first.insertAdjacentHTML('beforebegin', P.hand); }
+      O.hand = P.hand; ch = true;
+    }
+    const btns = ringEl.querySelectorAll(':scope > .tok');
+    for (let i = 0; i < P.toks.length; i++) {
+      if (O.toks[i] === P.toks[i]) continue;
+      if (btns[i]) btns[i].outerHTML = P.toks[i];
+      O.toks[i] = P.toks[i]; ch = true;
+    }
+    if (O.center !== P.center) { const c = ringEl.querySelector(':scope > .center'); if (c) c.innerHTML = P.center; O.center = P.center; ch = true; }
+    return ch;
   }
   // drawn for this site: an ornate clock hand, and a raised hand for a yes vote
   const CLOCKHAND = '<svg viewBox="0 0 20 100" preserveAspectRatio="none" aria-hidden="true"><path d="M10 0 L14 22 L11.5 26 L13 60 L10 100 L7 60 L8.5 26 L6 22 Z" fill="#d9b25f" stroke="#7a5a1c" stroke-width="1"/><circle cx="10" cy="22" r="3" fill="#7a5a1c"/></svg>';
   const HAND = '<span class="hand" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.5 12.5V6.2a1.4 1.4 0 0 1 2.8 0v4.6V3.9a1.4 1.4 0 0 1 2.8 0v6.9V5a1.4 1.4 0 0 1 2.8 0v6.5-3.3a1.4 1.4 0 0 1 2.8 0V15c0 4-2.8 7-6.8 7-2.6 0-4.3-1.2-5.6-3.2L3.6 14a1.4 1.4 0 0 1 2.3-1.6z"/></svg></span>';
   // an unclaimed seat: a hooded townsperson in dark ink
   const HOOD = art.roleIcon('hood').replace('currentColor', '#3a4260');
+  const DEADIC = art.roleIcon('dead');
   // behind the Town Square: the town at the foot of the board, drifting fog, and the moon and stars at
   // night (all drawn here in CSS; see .sky in styles.css). The fog keeps its place across re-renders
   // (a negative delay from the clock, set on the page so the ring's HTML stays the same and a tap is never
@@ -260,6 +302,7 @@
     online: ['Online', 'Create a room and share its code. Friends open this page, tap Play and join. Any seat nobody takes is played by a computer, and the computer is always the Storyteller. Each player sees only their own role and info. The day ends when everyone has tapped End day.'],
     practice: ['Practice', 'A computer Storyteller plays a game with computer players, then hands you the town notebook as one good player would see it. Work out the Demon, then tap Reveal to see everyone\'s real role.'],
     counts: ['Setup counts', 'Players 5–15 set how many Townsfolk, Outsiders, Minions and the one Demon are in play. Some roles change the Outsider count: Baron +2, Godfather +1 or −1, Fang Gu +1, Vigormortis −1. Townsfolk fill the rest.'],
+    timer: ['Day timer', 'Games against computers only. Each day gets this many minutes (counted while the game is on screen); when time runs out the day ends by itself, as if you tapped End day. A vote that is open finishes first. Online, the day ends when everyone taps End day.'],
     vote: ['Votes', 'A player goes on the block with at least half the living players voting yes (rounded up), and more votes than anyone so far today. A tie takes everyone off. Dead players have one vote left for the whole game.'],
   };
 
@@ -431,6 +474,22 @@
     runSolve('mine', input, r => { myOdds = r; if (state.tab === 'play') renderPlay(); });
   }
   function scheduleTick(ms) { clearTimeout(playTimer); playTimer = setTimeout(tick, ms); }
+  // Settings → Day timer (vs computers only): each day gets the set minutes, counted only while you
+  // look at the game; at 0 the day ends by itself (an open vote finishes first). The guided game has none.
+  let tmrLast = 0;
+  const timerOn = () => { const P = state.play; return !ON && !!P && !P.tutorial && !P.g.winner && P.g.stage === 'day' && (P.timer || 0) > 0; };
+  function timerTick() {
+    const now = Date.now(), dt = tmrLast ? Math.min(now - tmrLast, 2000) : 0;
+    tmrLast = now;
+    if (!timerOn()) return;
+    const P = state.play, g = P.g;
+    if (P.dayT !== g.t) { P.dayT = g.t; P.dayLeft = P.timer * 60000; }
+    if (!document.hidden && state.tab === 'play') P.dayLeft -= dt;
+    const el = document.getElementById('dayTmr');
+    if (el) { const sec = Math.max(0, Math.ceil(P.dayLeft / 1000)); el.textContent = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); el.classList.toggle('low', sec <= 30); }
+    if (B.timerDue(g, P.dayLeft) === 'end') { P.mode = null; P.timedOut = true; myAct({ type: 'endDay' }); toast('Time is up: the day ends.'); }
+  }
+  setInterval(timerTick, 1000);
   function tick() {
     const P = state.play;
     if (ON) { scheduleTick(1500); return; }
@@ -451,7 +510,7 @@
       if (P.g.winner) recordPlay();
       if (state.tab === 'play') renderPlay();
       requestMine();
-      scheduleTick(r.state.stage === 'night' ? 260 : 520);
+      scheduleTick(B.pause(r.state.stage, state.playSetup.speed));
     } else if (state.tab === 'play') renderPlay();
   }
   // kind: 'normal' (the setup's players + level), 'daily' (today's deal, the same for everyone) or
@@ -470,7 +529,7 @@
     const names = NAMES.slice(0, n).map((x, i) => (i === me ? 'You' : x));
     const g = E.createGame({ n, names, kinds: names.map((x, i) => (i === me ? 'you' : 'bot')), seed, roles });
     state.play = { g, me, level, levels: Array(n).fill(level), mem: {}, sel: [], mode: null, hist: [], fxId: Date.now(),
-      undo: [], helped: false, daily: kind === 'daily' ? PF().daily.date() : null, tutorial: kind === 'tutorial', recorded: false, moved: false };
+      undo: [], helped: false, timer: kind === 'tutorial' ? 0 : (state.playSetup.timer || 0), daily: kind === 'daily' ? PF().daily.date() : null, tutorial: kind === 'tutorial', recorded: false, moved: false };
     myOdds = null; myOddsKey = ''; pubCache = new Map();
     if (CO()) CO().closeOffer();
     if (tour) { if (kind === 'tutorial') { tour.reset(); tour.start(); } else tour.stop(); }
@@ -602,7 +661,7 @@
         (g.alive[me] && claimed && unshared.length ? '<button class="btn" data-act="play-share">Share info</button>' : '') +
         (g.alive[me] && !g.day.nominators.includes(me) ? '<button class="btn" data-act="play-mode" data-m="nominate">Nominate</button>' : '') +
         (amSlayer && !P.slayed ? '<button class="btn" data-act="play-mode" data-m="slay">Slay</button>' : '') +
-        (SRC.online && v.done && v.done[me] ? '<span class="small muted" style="align-self:center">Waiting for the others…</span>' : '<button class="btn warm" data-act="play-end">End day</button>') + '</div>';
+        (SRC.online && v.done && v.done[me] ? '<span class="small muted" style="align-self:center">Waiting for the others…</span>' : (!SRC.online && !P.tutorial && P.timer ? '<button class="btn warm timed" data-act="play-end">End day<span id="dayTmr" class="daytmr"></span></button>' : '<button class="btn warm" data-act="play-end">End day</button>')) + '</div>';
     }
     // feed: public log + my private notes, oldest first
     const feed = [];
@@ -630,9 +689,17 @@
     const fd = $('#feed'), atEnd = !fd._h || fd.scrollHeight - fd.scrollTop - fd.clientHeight < 12;
     put('pCard', card);
     const picking = !over && ((g.stage === 'night' && v.pending) || (g.stage !== 'night' && !g.day.vote && P.mode));
-    put('pRing', ring({ n: g.n, tokens, center, act: 'pseat', me, sky: true, hand: !over && g.day && g.day.vote ? g.day.vote.on : -1, cls: (over ? '' : g.stage === 'night' ? 'night' : 'day') + (picking ? ' picking' : '') }));
+    patchRing(document.getElementById('pRing'), ringParts({ n: g.n, tokens, center, act: 'pseat', me, sky: true, hand: !over && g.day && g.day.vote ? g.day.vote.on : -1, cls: (over ? '' : g.stage === 'night' ? 'night' : 'day') + (picking ? ' picking' : '') }));
     put('pAct', act);
-    if (put('feed', feed.join('')) || atEnd) { fd.scrollTop = fd.scrollHeight; requestAnimationFrame(() => { fd.scrollTop = fd.scrollHeight; }); }
+    if (document.getElementById('dayTmr')) { tmrLast = 0; timerTick(); }
+    // the notes only ever grow during a game: add the new lines instead of rewriting them all
+    let fch = false;
+    const ol = fd._lines;
+    if (ol && feed.length >= ol.length && ol.every((x, i) => x === feed[i])) {
+      if (feed.length > ol.length) { fd.insertAdjacentHTML('beforeend', feed.slice(ol.length).join('')); fch = true; }
+    } else { fd.innerHTML = feed.join(''); fch = true; }
+    fd._lines = feed; fd._h = 1;
+    if (fch || atEnd) { fd.scrollTop = fd.scrollHeight; requestAnimationFrame(() => { fd.scrollTop = fd.scrollHeight; }); }
     fxDrive(SRC, SRC.online ? 'on:' + (ON.snap.code || '') : 'local:' + P.fxId);
   }
   // ------------------------------------------------------------------ online room (shared _online layer)
@@ -1077,6 +1144,10 @@
         if (ON && ON.snap && ON.snap.pub && !ON.snap.pub.winner) h += '<h2 class="sec">Play</h2><button class="btn danger" data-act="set-leave">Leave room</button>';
         else if (!ON && state.play && !state.play.g.winner) h += '<h2 class="sec">Play</h2><button class="btn danger" data-act="play-quit">Quit this game</button>' + (quitCounts() ? '<div class="tiny muted">Counts as a loss in My stats.</div>' : '');
         if (CO() && CC) h += '<h2 class="sec">Rules</h2><div class="row"><button class="btn grow" data-act="rules">Full rules</button><button class="btn grow" data-act="guided">Guided game</button></div>';
+        const ps = state.playSetup;
+        h += '<h2 class="sec">Play options</h2>';
+        h += '<div class="row"><span class="grow">Computer speed</span>' + seg('set-speed', [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']], ps.speed || 'normal') + '</div>';
+        h += '<div class="row"><span class="grow">Day timer ' + helpBtn('timer') + '</span>' + seg('set-timer', B.TIMERS.map(m => [m, m ? m + ' min' : 'Off']), ps.timer || 0) + '</div>';
         h += '<h2 class="sec">Notebook</h2>';
         h += '<div class="row"><span class="grow">Players</span><div class="stepper"><button data-act="nb-n" data-d="-1">−</button><span>' + nb.n + '</span><button data-act="nb-n" data-d="1">+</button></div></div>';
         h += fldDiv('You are', seatChips('me', nb.me));
@@ -1263,6 +1334,7 @@
       const u = P.undo.pop();
       P.g = u.g; P.hist.length = Math.min(P.hist.length, u.hist); P.mem = u.mem || P.mem; P.slayed = u.slayed;
       P.sel = []; P.mode = null; P.helped = true; fxSkip = true;
+      if (P.timer && P.g.stage === 'day' && P.dayT === P.g.t && P.dayLeft < 30000) P.dayLeft = 30000; // Undo after time ran out: 30 s more
       save(); renderPlay(); requestMine(); scheduleTick(700);
       toast('Took back your last move.');
     },
@@ -1274,6 +1346,14 @@
     // play
     'ps-n'(d) { state.playSetup.n = Math.max(5, Math.min(15, state.playSetup.n + (+d.d))); save(); renderPlay(); },
     'ps-level'(d) { state.playSetup.level = d.v; save(); renderPlay(); },
+    'set-speed'(d) { state.playSetup.speed = d.v; save(); drawSheet(); },
+    'set-timer'(d) {
+      const m = +d.v; state.playSetup.timer = m;
+      // the game on now follows the new setting from its next day (or this one, if it had no timer)
+      const P = state.play;
+      if (P && !P.tutorial && !P.g.winner) { const had = P.timer; P.timer = m; if (!had && P.g.stage === 'day') P.dayT = -1; }
+      save(); drawSheet(); if (state.tab === 'play') renderPlay();
+    },
     'play-start'() { startPlay('normal'); },
     'play-new'() { state.play = null; clearTimeout(playTimer); save(); renderPlay(); },
     'play-quit'() {

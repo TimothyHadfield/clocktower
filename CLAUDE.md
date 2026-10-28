@@ -7,5 +7,5 @@ Blood on the Clocktower companion: town notebook with Demon odds, a full Trouble
 - Plain JS, no build step. Each `js/*.js` works in the browser (adds to `window.CT`) and in node (`module.exports`). The only exception is `js/online.js`: a copy of `../_online/online.js` (ES module). Don't edit it; re-copy it instead.
 - The engine is pure: `apply(state, action)` / `view(state, seat)`. State must survive JSON, and randomness comes from `state.seed`.
 - Bump `?v=N` on every script/style tag in `index.html` (and in `js/worker.js` importScripts) when shipping JS/CSS changes.
-- Tests: `node tests/solver.test.js && node tests/engine.test.js && node tests/art.test.js && node tests/online.test.mjs`. On a busy machine, set `CT_SLOW=1` for the solver speed test.
+- Tests: `node tests/solver.test.js && node tests/engine.test.js && node tests/art.test.js && node tests/online.test.mjs && node tests/options.test.js && node tests/kits.test.js && node tests/fx.test.js`. On a busy machine, set `CT_SLOW=1` for the solver speed test.
 - Strength numbers: `node tests/measure.js 200 8` (about 3 min). Record them in progress.md and in the "How strong?" text (`HELP.strong` in `js/app.js`).

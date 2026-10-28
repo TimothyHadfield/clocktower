@@ -297,6 +297,10 @@ h2.sec { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 
 .feed .f.sys { background: transparent; color: var(--warm); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; padding-top: 8px; }
 .actbar { display: flex; gap: 8px; flex-wrap: wrap; flex: 0 0 auto; }
 .actbar .btn { flex: 1 1 0; min-width: 0; }
+/* Day timer (Settings): the time left sits in the End day button; fixed-width digits so nothing jumps */
+.actbar .btn.timed { flex-direction: column; gap: 0; white-space: nowrap; }
+.actbar .daytmr { display: block; font-size: 12px; line-height: 1.1; font-variant-numeric: tabular-nums; font-weight: 700; opacity: .8; }
+.actbar .daytmr.low { color: #7a0f0a; opacity: 1; }
 .votebox { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; background: var(--card); border: 1px solid var(--accent); }
 .dots { display: inline-flex; gap: 4px; }
 .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: blink 1.2s infinite; }

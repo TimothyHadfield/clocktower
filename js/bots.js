@@ -246,7 +246,15 @@
     return { state: E.apply(s, { type: 'endDay', seat: -1 }), acted: true };
   }
 
-  const api = { decide, step, oddsKey, mkRng, suspicion };
+  // Settings → Computer speed: how long the app waits after each computer move (ms). Moves and choices
+  // are the same at every speed; only the pause between them changes.
+  const PACE = { slow: 1.8, normal: 1, fast: 0.4 };
+  function pause(stage, speed) { return Math.round((stage === 'night' ? 260 : 520) * (PACE[speed] || 1)); }
+  // Settings → Day timer (minutes; 0 = off). Returns what to do now: 'end' when time is up and no vote
+  // is open (a vote always finishes first), else 'wait'.
+  const TIMERS = [0, 2, 4, 6];
+  function timerDue(s, leftMs) { return s.stage === 'day' && !s.winner && !(s.day && s.day.vote) && leftMs <= 0 ? 'end' : 'wait'; }
+  const api = { decide, step, oddsKey, mkRng, suspicion, pause, PACE, TIMERS, timerDue };
   if (isNode) module.exports = api;
   else root.CT = Object.assign(root.CT || {}, { bots: api });
 })(typeof window !== 'undefined' ? window : globalThis);

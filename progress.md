@@ -5,7 +5,7 @@ Read this file, then CLAUDE.md, then `docs/rules-check.md` and `docs/ideas.md`. 
 Sounds/animations: `js/fx.js` (byte copy of `../_fx/fx.js`, never edit; re-copy), `js/ctfx.js` (game events → sounds/animations, pure `events(prev, cur)`).
 Table look: `css/table.css` + `js/table.js` (byte copies of `../_table/`, never edit; re-copy). The game's own table styling is in `styles.css` ("the seat circle" and "Play: your place at the table" sections).
 Kits (copies, never edit; re-copy): `js/coach.js`+`css/coach.css` (_coach 1.1.0), `js/profile.js`+`css/profile.css` (_profile 1.1.0), `js/pwa.js`+`sw.js`+`tools/pwa-check.mjs`+`tools/make-icons.mjs` (_pwa 1.3.0). Game side: `js/ctcoach.js` (guided game + rules sheet), `js/ctprofile.js` (levels, achievements, Daily, result).
-Last updated: 2026-10-28 (kit sweep: _coach 1.1.0, _pwa 1.3.0; the odds worker + its scripts are kept offline through `data-extra` on the pwa.js tag, the old `pwa:cache` message in app.js is gone; build `?v=14`; pwa-check 18/18 WebKit).
+Last updated: 2026-10-28 (wave 3: Rules → Videos, Play circle patched instead of rebuilt, Settings → Play options (Computer speed, Day timer); build `?v=15`).
 
 ## Goal right now
 Tim: "could you also explore blood on the clocktower?" Phase 2: "build regular play online with a computer or other online players for all the games … that match exactly the play of the in-person game … Really work on the webdesign … art … make sure that everything works properlly without errors … get everything right like rules … specific numbers."
@@ -26,8 +26,15 @@ Tim: "could you also explore blood on the clocktower?" Phase 2: "build regular p
 | Visual design pass (circle text scales, night/day tint, pick glow, odds bars) | Done 10-20, before/after shots in the manager's scratchpad `design/clocktower/` |
 | Optional sounds, win/lose celebration, small animations; "Sound & effects" in Settings | Done 10-20 (`tests/fx.test.js`) |
 | Real-table look: wood table, Town Square board with clock ticks, parchment life/character tokens (black side = dead, white vote token), your seat at the bottom, your character sheet in front of you, log as note paper, clock hand + raised hands in votes, Grimoire box with shrouds, round reminder tokens, bluff tokens, night sheet on paper | Done 10-20, shots in the manager's scratchpad `table/clocktower/` (before/, after/, real.md) |
+| Wave 3 (10-28): Rules sheet "Videos" (5 links), Play circle patched per token + notes appended (no full rebuild), Settings → Play options: Computer speed Slow/Normal/Fast, Day timer Off/2/4/6 min (vs computers only) | Done. Render cost below |
 
 | Visibility pass: circle fills the screen, real phone + landscape layouts, readable 12–15-seat circles | Done 10-21, shots + audit in the manager's scratchpad `vis/clocktower/` (before/, after/, audit.md; `shoot.mjs` + `check.mjs` measure, `taps.mjs` checks taps) |
+
+## Wave 3 (2026-10-28)
+- **Render cost** (Chromium, 393×659, 4× CPU throttle, same seeded 15-player game, 40 successive moves on day 2, render + forced layout): per move median 77–108 → 17–23 ms, p90 120–141 → 57–90 ms; a tap that only changes the prompt (Nominate on/off) 49–73 → 8–12 ms. Worst single update (first one after a big jump) ~200–300 → ~160–210 ms. After 50 patched updates the DOM equals a full rebuild exactly. Script: `C:/Users/timha/AppData/Local/Temp/claude/wt/ct-w3-scratch/perf.mjs` (may be swept).
+- **Videos** (each checked with YouTube oEmbed 2026-10-28, title + channel matched): `0aDt7n06dRM` Trouble Brewing – Explained in Detail (official channel); `LdPDOGtAppA` Quick Start Tutorial (Meeple University); `J78zBv1Dk9Y` How to play Every Character, TB (Mik Pick); `93ZOOpLuC0Q` How to Bluff as Every Character, TB (Mik Pick); `1Au_lSFPe-o` A Beginner's Guide to Storytelling (The Megavoid). List in `js/ctcoach.js` `VIDEOS`.
+- **Day timer**: per day, counted only while the Play tab is on screen; at 0 the day ends (`endDay` as you) once no vote is open; Undo after the timeout gives 30 s. Not in the guided game, not online (online days end when all tap End day). `tests/options.test.js`: 154 self-play games 5–15 players with 319 days cut short at random, all finish. Computer speed only changes the pause after each computer move (`B.pause`: normal 260/520 ms unchanged); strength untouched.
+- Skipped: Travellers (Rejected list), Teensyville (a script-design term for small custom scripts, not a Trouble Brewing setup rule), dead-vote house rules (no official/sourced variant), art (all 72 roles already have original icons; the night sky exists), remember last setup (already saved in `playSetup`).
 
 ## Visibility pass (2026-10-21)
 Circle size before → after: Play phone 274–290 → 332–343 px; phone landscape 160–197 → 261; laptop 1280 572 → 684, 1440 728 → 812; Grimoire phone 355 square → 355×435 oval, landscape 195 → 247 tall. Layout checks: 97 of 333 failed on the old build, 8 now (all at 320 px / landscape / 15-seat Grimoire). Seat taps 528/528 hit in WebKit and Chrome.
@@ -77,7 +84,9 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 ## Traps
 - **Build stamp (10-27):** all `?v=` in index.html, pwa.js `data-version`, `WV` in app.js and the `importScripts` stamps in `js/worker.js` and the three `?v=` in the pwa.js tag's `data-extra` (worker.js, roles.js, solver.js: the odds worker's offline copy) must move together (now 14).
 - **Solver changes:** `tests/solver-ref.js` is a frozen copy of the build-12 solver; `node tests/solver-match.test.js` (~75 s; `CT_FULL=1` ~10 min) must stay green after any solver edit, unless the odds model is meant to change (then refresh the ref copy on purpose and say so). The memo key in `start()` (Poisoner seat, Outsider count, Spy seat where `spySeen`, SW seat when deaths, Minion of `named` seats) must grow if a new reading looks at something else. Run it in the suite with the others.
-- `renderPlay` itself (not the odds) is the biggest main-thread cost at 15 players: Chrome 4× throttle showed 200–450 ms tasks late in a game (whole ring + feed re-render). Not touched in the odds pass. The online.js stamp is separate (next line).
+- **Play circle is patched, not rebuilt (10-28):** `ringParts()` + `patchRing()` change only the tokens/centre/hand/ring class that differ; the feed (`#feed`) only appends while its old lines are a prefix (`fd._lines`). In Play each token must stay exactly one `<button>` (no reminders) and anything structural (seat count, sky, animations on/off, box) goes into the patch key to force a rebuild. `ring()` (Town, Grimoire) still builds whole. `kits.test.js` checks the wiring.
+- **Build stamp is now 15** (all places listed above).
+- `B.pause(stage, speed)` / `B.timerDue(state, leftMs)` in bots.js are the Play options' logic; `P.timer`, `P.dayT`, `P.dayLeft` live in the saved game.
 - `state.grim` (engine) is the Storyteller's record (poison, protect, attack + result, info with ok/drunk, star pass). `view()` shows it only to `st` or after game over. Never add `rnd()` calls around it (seeded replays).
 - Guided game: steps with `hold: true` make `tick()` wait, but only while `tour.active` and the step's `when()` is true (`current()` still returns the last step after the tour ends). Night 1 resolves inside createGame, so the "Night" step comes after "End the day".
 - `window.__ct = { state, src, H, tour, E }` is a test hook (tut/ui/pwa-check scripts drive the game through `H`). Keep it.
@@ -124,6 +133,7 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 - Sounds were never heard: headless WebKit on Windows has no Web Audio. The sound list is tested in node with a fake AudioContext; loudness/feel of the bells on a real phone is unchecked. Confetti ran slowly in headless WebKit (same frame-gap artefact).
 - Sounds in a real online game (only the shared view-diff path, tested locally).
 - Real-table look: not seen on a real iPhone; the token flip was measured (class added on deaths, 0 errors) but not watched moving. Clocktower has no game Speed setting, so the old `data-speed` clash didn't apply.
+- Wave 3: render timing only with Chromium CPU throttle (not a real iPhone, not WebKit timing); the day timer was seen ending a day in WebKit (2-second clock, 7 players) but a full 2–6 minute day wasn't watched; the video links' content was judged by title/channel only.
 - Smoothness on a real iPhone. Headless WebKit showed ~300 ms frame gaps during computer turns, Chromium none; no app code ran over 100 ms on the main thread.
 
 ## Rejected / parked

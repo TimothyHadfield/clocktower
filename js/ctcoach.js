@@ -40,6 +40,15 @@
     ];
   }
 
+  // Learn more: each id checked with YouTube's oEmbed on 2026-10-28 (title and channel matched)
+  const VIDEOS = [
+    { id: '0aDt7n06dRM', title: 'Trouble Brewing – Explained in Detail', by: 'Blood on the Clocktower (official)', what: 'the starter script, start to finish' },
+    { id: 'LdPDOGtAppA', title: 'Quick Start Tutorial', by: 'Meeple University', what: 'the whole game in under 15 minutes' },
+    { id: 'J78zBv1Dk9Y', title: 'How to play every character (Trouble Brewing)', by: 'Mik Pick', what: 'tips for each role' },
+    { id: '93ZOOpLuC0Q', title: 'How to bluff as every character (Trouble Brewing)', by: 'Mik Pick', what: 'for when you are evil' },
+    { id: '1Au_lSFPe-o', title: 'A Beginner’s Guide to Storytelling', by: 'The Megavoid', what: 'running a game at a real table' },
+  ];
+
   /** The rules sheet: Trouble Brewing, in our own words. */
   function rules() {
     return {
@@ -52,12 +61,13 @@
         { id: 'day', short: 'Day', title: 'Day', html: '<ul><li>Dawn: the Storyteller says who died in the night (not their character).</li><li>Players talk, <b>claim</b> characters and share what they learned. Anyone may lie; evil players do.</li><li>Any living player may <b>nominate</b> once a day, and each player may be nominated once a day.</li></ul>' },
         { id: 'vote', short: 'Votes', title: 'Voting and execution', html: '<ul><li>Everyone votes on each nomination. A player goes <b>on the block</b> with at least half the living players voting yes (rounded up) and more votes than anyone else today.</li><li>A tie with the player on the block takes both off.</li><li>At the end of the day the player on the block is <b>executed</b>. There may be no execution.</li><li>A dead player has <b>one vote</b> left for the rest of the game.</li></ul>' },
         { id: 'end', short: 'Winning', title: 'Winning', html: '<ul><li>The Demon dies (executed, or shot by the Slayer): <b>good wins</b>, unless the Scarlet Woman takes over as the new Imp (5 or more players alive).</li><li>Only two players alive: <b>evil wins</b>.</li><li>The Saint executed: evil wins. Three alive, no execution and the Mayor alive: good wins.</li></ul>' },
+        { id: 'videos', short: 'Videos', title: 'Videos', html: '<p>Opens YouTube in a new tab.</p><ul>' + VIDEOS.map(v => '<li><a href="https://www.youtube.com/watch?v=' + v.id + '" target="_blank" rel="noopener">' + v.title + '</a> · ' + v.by + ': ' + v.what + '</li>').join('') + '</ul>' },
         { id: 'app', short: 'This app', title: 'Helpers in this app', html: '<ul><li><b>Demon odds</b> on each token: every possible line-up is checked against what was said, and each player gets their share.</li><li><b>Undo</b> (vs computers): takes back your last move. That game counts as "with help" in My stats.</li><li><b>Town</b> tab: a notebook for a real table. <b>Grimoire</b>: setup and night order for a Storyteller.</li></ul>' },
       ],
     };
   }
 
-  const api = { ID, SEED, ME, ROLES, steps, rules };
+  const api = { ID, SEED, ME, ROLES, VIDEOS, steps, rules };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CT = Object.assign(root.CT || {}, { coach: api });
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -132,5 +132,23 @@ t('art: unclaimed seats get the hooded figure, and the atmosphere and big moment
   ok(/execs\.has\(/.test(app) && /bigMoment\(/.test(app), 'execution + game-over moments wired');
 });
 
+t('rules sheet has 2-5 checked videos that open in a new tab', () => {
+  const C = require('../js/ctcoach.js');
+  const sec = C.rules().sections.find(x => x.id === 'videos');
+  ok(sec, 'videos section');
+  const links = sec.html.match(/<a [^>]*>/g) || [];
+  ok(links.length >= 2 && links.length <= 5, links.length + ' links');
+  for (const a of links) ok(/href="https:\/\/www\.youtube\.com\/watch\?v=[\w-]{11}"/.test(a) && /target="_blank"/.test(a) && /rel="noopener"/.test(a), a);
+  ok(C.VIDEOS.length === links.length && new Set(C.VIDEOS.map(v => v.id)).size === links.length, 'unique ids');
+});
+
+// --- render cost: the Play circle is patched, not rebuilt (15 seats were 200-450 ms on a slow phone)
+t('Play patches the circle and appends to the notes', () => {
+  const app = require('fs').readFileSync(__dirname + '/../js/app.js', 'utf8');
+  ok(/patchRing\(document\.getElementById\('pRing'\)/.test(app), 'pRing patched');
+  ok(!/put\('pRing'/.test(app), 'no full ring rebuild');
+  ok(/insertAdjacentHTML\('beforeend', feed\.slice/.test(app), 'feed appends');
+});
+
 console.log(passes + ' passed, ' + fails + ' failed');
 process.exit(fails ? 1 : 0);
