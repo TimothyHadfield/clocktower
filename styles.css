@@ -560,3 +560,6 @@ h2.sec { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 
   .sky .fog, .sky .stars, .tok.executed, .tok.revealed, .center.zoomin { animation: none !important; }
   .moment { display: none; }
 }
+
+/* Rules sheet links: dark ink on the cream paper (the site-wide link colour is light purple) */
+.coach-rules-body a { color: #2a4f9e; }

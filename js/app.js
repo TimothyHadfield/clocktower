@@ -125,7 +125,7 @@
   // ------------------------------------------------------------------ solver worker
   // WV: the worker's build stamp (same as its importScripts in js/worker.js and data-extra on the pwa.js tag,
   // which keeps the worker and its scripts in the home-screen app's offline copy)
-  const WV = 15;
+  const WV = 16;
   let worker = null;
   try { worker = new Worker('js/worker.js?v=' + WV); } catch (e) { worker = null; }
   const pending = {};
