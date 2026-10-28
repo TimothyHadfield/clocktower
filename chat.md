@@ -94,3 +94,5 @@
 - **Verified:** per-move render at 15 seats, Chromium 4× throttle: median ~90 → ~20 ms, prompt-only tap ~60 → ~10 ms; patched DOM = full rebuild. Tests: solver 12, solver-match green, engine 23, art 365, fx 6, kits 13 (2 new, failed on the old build), options 3 (new; failed on the old build; 154 self-play games with 319 timer cuts), online 151. pwa-check 18/18. WebKit shots 393/320/659×393/1280/1440 of Settings, Play with the timer, Rules → Videos: 0 errors, no sideways or page scroll. Timer ended a day in WebKit.
 - **Skipped:** Travellers (Rejected), Teensyville (a custom-script term, not a TB rule), unsourced dead-vote house rules, art (already done), remember setup (already saved).
 - **Open:** real iPhone; Tim's calls: the option names and the 2/4/6-minute choices.
+
+## 2026-10-28 — wave 3 kit sweep (builder A2): `_coach` 1.2.0 + `_pwa` 1.4.0 copied, build 17, offer `place:'auto'` avoiding "Play vs computers", local offer/link overrides dropped; all suites green, pwa-check 18/18, offer/settings rect checks pass at 393/320/659×393.

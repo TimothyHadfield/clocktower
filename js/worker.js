@@ -1,6 +1,6 @@
 // Runs the solver off the main thread so the page never freezes. A job runs in small steps, and a
 // newer job with the same tag (the game moved on) replaces an older one that hasn't finished.
-importScripts('roles.js?v=16', 'solver.js?v=16');
+importScripts('roles.js?v=17', 'solver.js?v=17');
 const jobs = new Map();   // tag -> { id, job }, oldest first
 let running = false;
 const ch = new MessageChannel();   // a zero-delay "come back after the inbox" (setTimeout clamps to 4 ms)

@@ -125,7 +125,7 @@
   // ------------------------------------------------------------------ solver worker
   // WV: the worker's build stamp (same as its importScripts in js/worker.js and data-extra on the pwa.js tag,
   // which keeps the worker and its scripts in the home-screen app's offline copy)
-  const WV = 16;
+  const WV = 17;
   let worker = null;
   try { worker = new Worker('js/worker.js?v=' + WV); } catch (e) { worker = null; }
   const pending = {};
@@ -1500,7 +1500,7 @@
   function offerCoach() {
     const co = CO();
     if (!co || ON || state.tab !== 'play' || state.play) return;
-    co.offer({ id: CC.ID, title: 'New to Clocktower?', text: 'Play one guided game as the Empath against Easy computers.', yes: 'Teach me', no: 'No thanks', onYes: () => H.guided() });
+    co.offer({ id: CC.ID, title: 'New to Clocktower?', text: 'Play one guided game as the Empath against Easy computers.', yes: 'Teach me', no: 'No thanks', onYes: () => H.guided(), place: 'auto', avoid: ['[data-act="play-start"]'] });
   }
   // a reload is harmless only on a quiet screen: no room, nothing open, no typing, no game in progress
   if (window.PWA) window.PWA.safeToReload = () => {
