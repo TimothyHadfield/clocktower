@@ -1,5 +1,5 @@
 // Runs the solver off the main thread so the page never freezes.
-importScripts('roles.js?v=10', 'solver.js?v=10');
+importScripts('roles.js?v=11', 'solver.js?v=11');
 self.onmessage = function (e) {
   const d = e.data || {};
   let r;

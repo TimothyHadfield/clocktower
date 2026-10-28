@@ -89,6 +89,8 @@
     minioninfo: '<path d="M32 10 54 50H10z"/><path d="M32 26v12"/>',
     demoninfo: '<path d="M18 12l7 14M46 12l-7 14"/><circle cx="32" cy="38" r="16"/>',
     dusk: '<path d="M8 44h48"/><path d="M18 44a14 14 0 0 1 28 0"/>',
+    // a seat nobody has claimed yet: a hooded townsperson, face in shadow
+    hood: '<path d="M32 7c-7 0-12 6-12 14v7c-7 4-11 12-11 27h46c0-15-4-23-11-27v-7c0-8-5-14-12-14z"/><path d="M26 23c2-5 10-5 12 0v5c-3 4-9 4-12 0z"/><path d="M20 28c4 4 20 4 24 0"/>',
   };
   const wrap = body => '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + body + '</svg>';
   function roleIcon(id, type) { return wrap(P[id] || MARK[id] || TYPE_PATH[type] || TYPE_PATH.T); }

@@ -45,6 +45,9 @@
     if (!FXL || !CFX) return;
     const cur = SRC ? CFX.snap(SRC.v, key) : null;
     const list = cur && !fxSkip ? CFX.events(fxPrev, cur) : [];
+    // the big moments: who was executed just now, and whether the game just ended
+    const execs = new Set(list.length && fxPrev && cur && fxPrev.key === cur.key ? cur.pub.slice(fxPrev.pubLen).filter(x => x.kind === 'exec').map(x => x.seat) : []);
+    const ended = list.length && cur && cur.winner && fxPrev && !fxPrev.winner;
     fxPrev = cur; fxSkip = false;
     CFX.play(list, { FX: FXL, find: fxFind });
     // physical touches, timed with the sounds: a life token turns over to its black side when its
@@ -60,12 +63,39 @@
           const el = a[1] === 'card' ? document.querySelector('#pCard .ctok') : document.querySelector('#pRing .tok[data-seat="' + a[1].seat + '"]');
           if (!el) return;
           if (a[1] === 'card') { el.animate([{ transform: 'rotateY(180deg)' }, { transform: 'rotateY(0)' }], { duration: 550 * k, easing: 'cubic-bezier(.3,.7,.3,1)' }); return; }
-          el.classList.remove('flipping'); void el.offsetWidth; el.classList.add('flipping');
-          el.addEventListener('animationend', () => el.classList.remove('flipping'), { once: true });
+          // an execution: the token is lifted up before the town, glows red, then turns over
+          const big = execs.has(a[1].seat);
+          const cls = big ? 'executed' : 'flipping';
+          if (big) bigMoment('dread');
+          el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+          el.addEventListener('animationend', () => el.classList.remove(cls), { once: true });
         }, Math.round(at * k));
       }
       at += e.gap || 0;
     }
+    // game over: the Demon's token is revealed with a red glow, and the winner zooms in at the centre
+    if (ended && SRC.v.roles) {
+      setTimeout(() => {
+        SRC.v.roles.forEach((r, i) => {
+          if (r !== 'imp') return;
+          const el = document.querySelector('#pRing .tok[data-seat="' + i + '"]');
+          if (el) { el.classList.remove('revealed'); void el.offsetWidth; el.classList.add('revealed'); }
+        });
+        const c = document.querySelector('#pRing .center');
+        if (c) { c.classList.remove('zoomin'); void c.offsetWidth; c.classList.add('zoomin'); }
+        bigMoment(SRC.v.winner === 'evil' ? 'dread' : 'dawnburst');
+      }, Math.round(Math.max(0, at - 300) * k));
+    }
+  }
+  // a short wash over the whole Town Square: 'dread' (dark red, an execution or evil wins) or 'dawnburst' (gold)
+  function bigMoment(kind) {
+    const box = document.querySelector('#pRing .ring');
+    if (!box) return;
+    const w = document.createElement('div');
+    w.className = 'moment ' + kind; w.setAttribute('aria-hidden', 'true');
+    box.appendChild(w);
+    w.addEventListener('animationend', () => w.remove(), { once: true });
+    setTimeout(() => w.remove(), 3000);
   }
   function fxError() {
     if (!FXL) return;
@@ -94,7 +124,7 @@
 
   // ------------------------------------------------------------------ solver worker
   // WV: the worker's build stamp (same as its importScripts in js/worker.js)
-  const WV = 10;
+  const WV = 11;
   let worker = null;
   try { worker = new Worker('js/worker.js?v=' + WV); } catch (e) { worker = null; }
   // the home-screen app's offline copy: the page's own crawl never sees what the worker fetches, so ask
@@ -159,6 +189,7 @@
     // and an oval Grimoire (o.oval: the ring fills its whole box) sizes tokens by its short side
     const size = crowd ? Math.min(11.5, 128 / n) : Math.min(15, 150 / n);
     let h = '<div class="ring ' + (o.cls || '') + (crowd ? ' crowd' : '') + (o.oval ? ' oval' : '') + '" style="--ts:' + size + 'cqmin;--lw:' + (crowd && o.oval ? 'max(' + (200 / n).toFixed(1) + 'cqmin, min(' + (150 / n).toFixed(1) + 'cqw, 22cqmin))' : (crowd ? (200 / n).toFixed(1) : 24) + 'cqmin') + '">';
+    if (o.sky) h += skyHTML();
     if (o.hand != null && o.hand >= 0) h += '<span class="clockhand" style="rotate:' + (deg(o.hand) + 90).toFixed(1) + 'deg">' + CLOCKHAND + '</span>';
     for (const t of o.tokens) {
       const a = deg(t.seat) * Math.PI / 180;
@@ -184,6 +215,17 @@
   // drawn for this site: an ornate clock hand, and a raised hand for a yes vote
   const CLOCKHAND = '<svg viewBox="0 0 20 100" preserveAspectRatio="none" aria-hidden="true"><path d="M10 0 L14 22 L11.5 26 L13 60 L10 100 L7 60 L8.5 26 L6 22 Z" fill="#d9b25f" stroke="#7a5a1c" stroke-width="1"/><circle cx="10" cy="22" r="3" fill="#7a5a1c"/></svg>';
   const HAND = '<span class="hand" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.5 12.5V6.2a1.4 1.4 0 0 1 2.8 0v4.6V3.9a1.4 1.4 0 0 1 2.8 0v6.9V5a1.4 1.4 0 0 1 2.8 0v6.5-3.3a1.4 1.4 0 0 1 2.8 0V15c0 4-2.8 7-6.8 7-2.6 0-4.3-1.2-5.6-3.2L3.6 14a1.4 1.4 0 0 1 2.3-1.6z"/></svg></span>';
+  // an unclaimed seat: a hooded townsperson in dark ink
+  const HOOD = art.roleIcon('hood').replace('currentColor', '#3a4260');
+  // behind the Town Square: the town at the foot of the board, drifting fog, and the moon and stars at
+  // night (all drawn here in CSS; see .sky in styles.css). The fog keeps its place across re-renders
+  // (a negative delay from the clock, set on the page so the ring's HTML stays the same and a tap is never
+  // lost to a re-render) and stands still when animations are off.
+  function skyHTML() {
+    const still = !(window.TABLE && window.TABLE.animOn());
+    document.documentElement.style.setProperty('--fd', -((Date.now() / 1000) % 240).toFixed(1) + 's');
+    return '<div class="sky' + (still ? ' still' : '') + '" aria-hidden="true"><span class="stars"></span><span class="moon"></span><span class="fog f1"></span><span class="fog f2"></span><span class="town"></span></div>';
+  }
   const ctok = id => '<span class="ctok t-' + rtype(id) + '"><span class="ic">' + icon(id) + '</span></span>';
   function seg(act, items, cur, extra) {
     return '<div class="seg ' + (extra || '') + '">' + items.map(([v, l]) => '<button data-act="' + act + '" data-v="' + v + '" class="' + (String(cur) === String(v) ? 'on' : '') + '">' + l + '</button>').join('') + '</div>';
@@ -241,7 +283,7 @@
       const showRole = revealed ? P.truth.roles[i] : c;
       const p = odds && !odds.error ? odds.pDemon[i] : 0;
       tokens.push({
-        seat: i, type: showRole ? rtype(showRole) : '', ic: showRole ? icon(showRole) : art.tokenIcon('T').replace('currentColor', '#3a4260'),
+        seat: i, type: showRole ? rtype(showRole) : '', ic: showRole ? icon(showRole) : HOOD,
         name: nb.names[i], cl: revealed ? (c && c !== showRole ? 'said ' + rname(c) : rname(showRole)) : (c ? rname(c) : ''),
         cls: (i === nb.me ? 'me ' : '') + (dead[i] ? 'dead ' : '') + (nb.sure[i] ? 'sure-' + nb.sure[i] + ' ' : '') + (i === top && !revealed && p > 0 ? 'top' : ''),
         dead: !!dead[i],
@@ -262,7 +304,7 @@
     $('#v-town').innerHTML = banner +
       '<div class="townbar phone-only-row">' + seg('townview', [['circle', 'Circle'], ['log', 'Log']], state.townView, 'phone-only') + '</div>' +
       '<div class="split show-' + state.townView + '">' +
-      '<div class="ringcol">' + ring({ n: nb.n, tokens, center, act: 'seat', me: nb.me, box: 'tbl-surface tbl-wood-dark', cls: isNight(nb.t) ? 'night' : 'day' }) +
+      '<div class="ringcol">' + ring({ n: nb.n, tokens, center, act: 'seat', me: nb.me, box: 'tbl-surface tbl-wood-dark', sky: true, cls: isNight(nb.t) ? 'night' : 'day' }) +
       '<div class="actions"><button class="btn" data-act="form" data-f="nom">' + plus() + 'Vote</button><button class="btn" data-act="form" data-f="death">' + plus() + 'Death</button><button class="btn" data-act="form" data-f="info">' + plus() + 'Info</button></div></div>' +
       '<div class="side nb-log"><div class="row"><h2 class="sec grow">Log</h2></div><div class="scroll grow" id="logScroll">' + logHTML(nb) + '</div></div>' +
       '</div>';
@@ -491,7 +533,7 @@
       const shown = over ? g.roles[i] : (i === me ? v.me.role : (mate && mate.demon && !claim ? 'imp' : claim));
       const p = odds ? odds.pDemon[i] : 0;
       tokens.push({
-        seat: i, type: shown ? rtype(shown) : '', ic: shown ? icon(shown) : art.tokenIcon('T').replace('currentColor', '#3a4260'),
+        seat: i, type: shown ? rtype(shown) : '', ic: shown ? icon(shown) : HOOD,
         name: g.names[i], cl: over ? (claim && claim !== g.roles[i] ? 'said ' + rname(claim) : rname(g.roles[i])) : (claim ? rname(claim) : ''),
         cls: (i === me ? 'me ' : '') + (!g.alive[i] ? 'dead ' : '') + (P.sel.includes(i) ? 'sel ' : '') + (isTeam && i !== me && !over ? 'sure-evil ' : '') + (i === top && !over && i !== me ? 'top' : ''),
         dead: !g.alive[i], extra: (!g.alive[i] && g.ghost[i] ? '<span class="ghost" title="Has a vote"></span>' : '') + (!over && g.day && g.day.vote && g.day.vote.votes[i] ? HAND : ''),
@@ -570,7 +612,7 @@
     const fd = $('#feed'), atEnd = !fd._h || fd.scrollHeight - fd.scrollTop - fd.clientHeight < 12;
     put('pCard', card);
     const picking = !over && ((g.stage === 'night' && v.pending) || (g.stage !== 'night' && !g.day.vote && P.mode));
-    put('pRing', ring({ n: g.n, tokens, center, act: 'pseat', me, hand: !over && g.day && g.day.vote ? g.day.vote.on : -1, cls: (over ? '' : g.stage === 'night' ? 'night' : 'day') + (picking ? ' picking' : '') }));
+    put('pRing', ring({ n: g.n, tokens, center, act: 'pseat', me, sky: true, hand: !over && g.day && g.day.vote ? g.day.vote.on : -1, cls: (over ? '' : g.stage === 'night' ? 'night' : 'day') + (picking ? ' picking' : '') }));
     put('pAct', act);
     if (put('feed', feed.join('')) || atEnd) { fd.scrollTop = fd.scrollHeight; requestAnimationFrame(() => { fd.scrollTop = fd.scrollHeight; }); }
     fxDrive(SRC, SRC.online ? 'on:' + (ON.snap.code || '') : 'local:' + P.fxId);

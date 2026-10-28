@@ -118,5 +118,19 @@ t('rules sheet table matches the setup table for 5-15 players', () => {
   }
 });
 
+t('art: unclaimed seats get the hooded figure, and the atmosphere and big moments respect reduced motion', () => {
+  const art = require('../js/art.js');
+  ok(art.MARK.hood && !Object.values(art.PATHS).includes(art.MARK.hood), 'hood icon');
+  const fs = require('fs');
+  const css = fs.readFileSync(__dirname + '/../styles.css', 'utf8');
+  const app = fs.readFileSync(__dirname + '/../js/app.js', 'utf8');
+  ok(/\.sky \.town \{[^}]*data:image\/svg/.test(css), 'town silhouette');
+  ok(/\.ring\.night \.sky \.moon/.test(css), 'moon at night');
+  const rm = css.slice(css.lastIndexOf('@media (prefers-reduced-motion: reduce)'));
+  for (const k of ['.sky .fog', '.tok.executed', '.tok.revealed', '.moment']) ok(rm.includes(k), 'reduced motion stops ' + k);
+  ok(/HOOD = art\.roleIcon\('hood'\)/.test(app) && !/art\.tokenIcon\('T'\)\.replace/.test(app), 'rings use the hood');
+  ok(/execs\.has\(/.test(app) && /bigMoment\(/.test(app), 'execution + game-over moments wired');
+});
+
 console.log(passes + ' passed, ' + fails + ' failed');
 process.exit(fails ? 1 : 0);

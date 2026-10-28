@@ -498,3 +498,58 @@ h2.sec { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 
 .list.story .li { display: block; padding: 6px 10px; line-height: 1.4; }
 .kitrow .btn { white-space: nowrap; font-size: 14px; }
 :root { --coach-offer-bottom: calc(var(--tab-h) + 10px); }
+
+/* ---------- the night atmosphere behind the Town Square (drawn for this site) ----------
+   .sky sits inside the round board: the town's roofs and its clock tower along the foot, drifting fog,
+   and the moon and stars at night. The fog drifts only when animations are on (.still = off). */
+.sky { position: absolute; inset: 9%; border-radius: 50%; overflow: hidden; z-index: -1; pointer-events: none; }
+.sky > span { position: absolute; pointer-events: none; }
+.sky .town { left: 0; right: 0; bottom: 0; height: 30%; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 120' preserveAspectRatio='xMidYMax slice'%3E%3Cg fill='%2307080d'%3E%3Cpath d='M0 120V88l18-16 18 16v32z'/%3E%3Cpath d='M30 120V80h16V70l16-14 16 14v50z'/%3E%3Cpath d='M74 120V90l18-14 18 14v30z'/%3E%3Cpath d='M104 120V84l20-16 20 16v36z'/%3E%3Cpath d='M140 120V92l12-8 12 8v28z'/%3E%3Cpath d='M150 120V78l16-14 16 14v42z'/%3E%3Cpath d='M182 120V36l18-32 18 32v84z'/%3E%3Cpath d='M218 120V78l16-14 16 14v42z'/%3E%3Cpath d='M246 120V90l14-10 14 10v30z'/%3E%3Cpath d='M262 120V86l16-14 16 14v34z'/%3E%3Cpath d='M290 120V76h10v-8h6v8l16-14 16 14v44z'/%3E%3Cpath d='M334 120V90l18-14 18 14v30z'/%3E%3Cpath d='M364 120V82l18-16 18 16v38z'/%3E%3C/g%3E%3Ccircle cx='200' cy='50' r='8' fill='none' stroke='%23d9b25f' stroke-opacity='.55' stroke-width='1.6'/%3E%3Cpath d='M200 50v-5M200 50l3.5 2' stroke='%23d9b25f' stroke-opacity='.55' stroke-width='1.4' stroke-linecap='round'/%3E%3Cg fill='%23f0b354' fill-opacity='.5'%3E%3Crect x='12' y='96' width='5' height='7'/%3E%3Crect x='54' y='84' width='5' height='7'/%3E%3Crect x='118' y='92' width='5' height='7'/%3E%3Crect x='196' y='76' width='8' height='12' rx='4'/%3E%3Crect x='160' y='96' width='5' height='7'/%3E%3Crect x='236' y='88' width='5' height='7'/%3E%3Crect x='308' y='86' width='5' height='7'/%3E%3Crect x='346' y='98' width='5' height='7'/%3E%3Crect x='378' y='92' width='5' height='7'/%3E%3C/g%3E%3C/svg%3E") center bottom / cover no-repeat; opacity: .72; }
+.ring.day .sky .town, .ring:not(.night):not(.day) .sky .town { opacity: .5; }
+.sky .fog { left: 0; width: 200%; height: 46%; bottom: 4%; opacity: .9;
+  background: radial-gradient(ellipse 22% 38% at 12% 62%, rgba(196,206,226,.10), transparent 70%), radial-gradient(ellipse 18% 30% at 38% 70%, rgba(196,206,226,.08), transparent 70%),
+    radial-gradient(ellipse 24% 40% at 62% 60%, rgba(196,206,226,.10), transparent 70%), radial-gradient(ellipse 18% 30% at 88% 70%, rgba(196,206,226,.08), transparent 70%);
+  animation: fogdrift 240s linear infinite; animation-delay: var(--fd, 0s); }
+.sky .fog.f2 { bottom: 16%; height: 34%; opacity: .6; animation-duration: 160s; animation-direction: reverse; }
+.ring.day .sky .fog { opacity: .45; }
+.sky .stars { inset: 0 0 45% 0; opacity: 0; transition: opacity .8s;
+  background: radial-gradient(1.2px 1.2px at 22% 30%, #fff, transparent), radial-gradient(1px 1px at 34% 18%, #fff, transparent), radial-gradient(1.4px 1.4px at 46% 40%, #fff, transparent),
+    radial-gradient(1px 1px at 58% 22%, #fff, transparent), radial-gradient(1.2px 1.2px at 78% 44%, #fff, transparent), radial-gradient(1px 1px at 28% 52%, #fff, transparent),
+    radial-gradient(1px 1px at 66% 58%, #fff, transparent), radial-gradient(1.3px 1.3px at 40% 62%, #fff, transparent), radial-gradient(1px 1px at 84% 30%, #fff, transparent), radial-gradient(1px 1px at 16% 46%, #fff, transparent); }
+.sky .moon { left: 57%; top: 27%; width: 8%; aspect-ratio: 1; border-radius: 50%; opacity: 0; transition: opacity .8s;
+  font-size: clamp(9px, 2.6cqmin, 22px); box-shadow: inset -.32em .16em 0 0 #efe6c8; filter: drop-shadow(0 0 6px rgba(239,230,200,.45)); }
+.ring.night .sky .stars { opacity: .75; animation: twinkle 7s ease-in-out infinite; }
+.ring.night .sky .moon { opacity: .9; }
+.sky.still .fog, .sky.still .stars { animation: none !important; }
+@keyframes fogdrift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes twinkle { 0%, 100% { opacity: .75; } 50% { opacity: .45; } }
+
+/* token faces: a soft wash of the team's ink behind the drawing, like the printed centre of a real token */
+.tok.t-T:not(.dead), .ctok.t-T { background: radial-gradient(circle, rgba(31,79,147,.13) 0 44%, transparent 46%), radial-gradient(circle at 38% 30%, #fbf4e2, var(--parch) 40%, var(--parch-2) 80%, var(--parch-3) 100%); }
+.tok.t-O:not(.dead), .ctok.t-O { background: radial-gradient(circle, rgba(43,106,140,.14) 0 44%, transparent 46%), radial-gradient(circle at 38% 30%, #fbf4e2, var(--parch) 40%, var(--parch-2) 80%, var(--parch-3) 100%); }
+.tok.t-M:not(.dead), .ctok.t-M { background: radial-gradient(circle, rgba(163,38,28,.14) 0 44%, transparent 46%), radial-gradient(circle at 38% 30%, #fbf4e2, var(--parch) 40%, var(--parch-2) 80%, var(--parch-3) 100%); }
+.tok.t-D:not(.dead), .ctok.t-D { background: radial-gradient(circle, rgba(140,15,15,.18) 0 44%, transparent 46%), radial-gradient(circle at 38% 30%, #fbf4e2, var(--parch) 40%, var(--parch-2) 80%, var(--parch-3) 100%); }
+.tok.empty .ic { opacity: .5; }
+
+/* the big moments (they run only when animations are on: app.js checks TABLE.animOn()) */
+@keyframes executed {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  30% { transform: translate(-50%, -50%) scale(1.38); box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 0 0 5px rgba(224,69,60,.85), 0 0 34px 8px rgba(224,69,60,.55), var(--edge); }
+  62% { transform: translate(-50%, -50%) scale(1.38) rotateY(90deg); }
+  100% { transform: translate(-50%, -50%) scale(1) rotateY(0); } }
+.tok.executed { animation: executed 1.25s cubic-bezier(.3,.7,.3,1); z-index: 3; }
+@keyframes revealed {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  20%, 60% { transform: translate(-50%, -50%) scale(1.3); box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 0 0 5px rgba(255,106,94,.9), 0 0 40px 12px rgba(224,69,60,.6), var(--edge); }
+  40%, 80% { transform: translate(-50%, -50%) scale(1.16); box-shadow: inset 0 0 0 1px rgba(80,55,20,.35), 0 0 0 3px rgba(255,106,94,.6), 0 0 20px 4px rgba(224,69,60,.35), var(--edge); } }
+.tok.revealed { animation: revealed 2.2s ease-in-out; z-index: 3; }
+@keyframes zoomin { 0% { transform: translate(-50%, -50%) scale(.4); opacity: 0; } 60% { transform: translate(-50%, -50%) scale(1.12); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1); } }
+.center.zoomin { animation: zoomin .9s cubic-bezier(.3,.7,.3,1); }
+.moment { position: absolute; inset: 9%; border-radius: 50%; pointer-events: none; z-index: 2; }
+.moment.dread { background: radial-gradient(circle, transparent 30%, rgba(120,10,10,.55) 100%); animation: wash 1.6s ease-out forwards; }
+.moment.dawnburst { background: radial-gradient(circle, rgba(255,214,130,.45), transparent 70%); animation: wash 1.8s ease-out forwards; }
+@keyframes wash { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .sky .fog, .sky .stars, .tok.executed, .tok.revealed, .center.zoomin { animation: none !important; }
+  .moment { display: none; }
+}
