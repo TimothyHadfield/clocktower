@@ -478,3 +478,23 @@ h2.sec { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 
 #v-town .nb-log .li .x { color: #6b5a42; }
 #v-town .nb-log .li .x:hover { background: rgba(0,0,0,.08); color: #2b2218; }
 #v-town .nb-log .ic.c-T, #v-town .nb-log .ic.c-O { color: var(--ink-T); } #v-town .nb-log .ic.c-M, #v-town .nb-log .ic.c-D { color: var(--ink-M); }
+
+/* ---------- shared kits: My stats, Daily, rules sheet, guided game, Undo (2026-10-27) ---------- */
+#undoBtn[hidden] { display: none; }
+.kitrow { flex-wrap: wrap; }
+.kitrow .btn { flex: 1 1 0; min-width: 0; padding: 0 8px; }
+.kitrow .btn[aria-disabled="true"] { color: var(--muted); }
+.pf-open svg { width: 22px; height: 22px; border-radius: 50%; flex: 0 0 auto; }
+.banner .pf-open svg { width: 18px; height: 18px; }
+/* the rules sheet's section tabs wrap to a second row on phones instead of scrolling sideways (kit wart) */
+.coach-rules .coach-rules-nav { flex-wrap: wrap; overflow-x: visible; row-gap: 6px; }
+.coach-rules td:first-child { white-space: nowrap; }
+/* the story of the game: everyone's real character, then night by night */
+.story-cast { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; margin-bottom: 6px; }
+.story-cast .sc { display: flex; align-items: center; gap: 6px; font-size: 12.5px; line-height: 1.25; min-width: 0; }
+.story-cast .sc > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.story-cast .ctok { width: 34px; }
+.list.story { gap: 3px; }
+.list.story .li { display: block; padding: 6px 10px; line-height: 1.4; }
+.kitrow .btn { white-space: nowrap; font-size: 14px; }
+:root { --coach-offer-bottom: calc(var(--tab-h) + 10px); }

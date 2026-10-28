@@ -1,0 +1,10 @@
+{
+  "repo": "clocktower",
+  "ready": "!!(window.__ct && document.querySelector('nav, .tabbar, #tabs'))",
+  "play": [
+    "(async () => { const w = ms => new Promise(r => setTimeout(r, ms)); const ct = window.__ct; try { localStorage.setItem('coach:clocktower-first', 'done'); } catch (e) {} ct.H.tab({ tab: 'play' }); if (!ct.state().play) ct.H['play-start'](); for (let i = 0; i < 300; i++) { const P = ct.state().play; if (P && P.g.stage === 'night' && P.g.pending && P.g.pending.seat === P.me) { const pk = P.g.pending; P.sel = []; for (let k = 0; k < P.g.n && P.sel.length < pk.picks; k++) if (k !== P.me) P.sel.push(k); ct.H['play-choose'](); await w(300); continue; } if (P && P.g.stage === 'day' && !P.g.day.vote && P.g.t === 2 && document.querySelector('[data-act=play-end]')) break; await w(100); } window.__tBefore = ct.state().play.g.t; ct.H['play-end'](); })()"
+  ],
+  "played": "(() => { const P = window.__ct.state().play; return !!P && (P.g.winner || P.g.t > window.__tBefore && (P.g.stage === 'day' || (P.g.pending && P.g.pending.seat === P.me))); })()",
+  "safe": "window.__ct.H.tab({ tab: 'town' })",
+  "debug": "JSON.stringify((() => { const P = window.__ct.state().play; return P ? { t: P.g.t, stage: P.g.stage, pending: P.g.pending, before: window.__tBefore, me: P.me } : null; })())"
+}

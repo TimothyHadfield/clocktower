@@ -10,13 +10,19 @@
 <meta name="description" content="Blood on the Clocktower notebook, Demon odds solver, Storyteller helper and a full Trouble Brewing game against computer players.">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="css/table.css?v=9">
-<link rel="stylesheet" href="styles.css?v=9">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Clocktower">
+<link rel="stylesheet" href="css/table.css?v=10">
+<link rel="stylesheet" href="css/coach.css?v=10">
+<link rel="stylesheet" href="css/profile.css?v=10">
+<link rel="stylesheet" href="styles.css?v=10">
 </head>
 <body>
 <header class="top">
   <div class="brand"><img src="icon.svg" alt=""><span>Clocktower</span></div>
   <div class="head-mid" id="headMid"></div>
+  <button class="iconbtn" id="undoBtn" hidden aria-label="Undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
   <button class="iconbtn" id="gear" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
 </header>
 <div class="shell">
@@ -37,16 +43,21 @@
 </div>
 <div id="sheetRoot"></div>
 <div id="toastRoot"></div>
-<script src="js/roles.js?v=9"></script>
-<script src="js/art.js?v=9"></script>
-<script src="js/solver.js?v=9"></script>
-<script src="js/engine.js?v=9"></script>
-<script src="js/bots.js?v=9"></script>
-<script src="js/ctonline.js?v=9"></script>
-<script src="js/fx.js?v=9"></script>
-<script src="js/table.js?v=9"></script>
-<script src="js/ctfx.js?v=9"></script>
-<script src="js/app.js?v=9"></script>
+<script src="js/roles.js?v=10"></script>
+<script src="js/art.js?v=10"></script>
+<script src="js/solver.js?v=10"></script>
+<script src="js/engine.js?v=10"></script>
+<script src="js/bots.js?v=10"></script>
+<script src="js/ctonline.js?v=10"></script>
+<script src="js/fx.js?v=10"></script>
+<script src="js/table.js?v=10"></script>
+<script src="js/ctfx.js?v=10"></script>
+<script src="js/coach.js?v=10"></script>
+<script src="js/ctcoach.js?v=10"></script>
+<script src="js/profile.js?v=10"></script>
+<script src="js/ctprofile.js?v=10"></script>
+<script src="js/pwa.js?v=10" data-version="10"></script>
+<script src="js/app.js?v=10"></script>
 <script type="module">import { createOnline } from './js/online.js?v=a3d0418b'; window.CTOnlineLib = { createOnline }; window.dispatchEvent(new Event('ct-online-ready'));</script>
 </body>
 </html>

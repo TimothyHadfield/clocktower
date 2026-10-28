@@ -28,7 +28,7 @@
   // ------------------------------------------------------------------ sounds + animations (js/fx.js, js/ctfx.js)
   const FXL = window.FX || null, CFX = CT.fx;
   if (FXL && CFX) { FXL.init({ game: 'clocktower', accent: '#6ea8fe' }); CFX.defineSounds(FXL); }
-  let fxPrev = null;
+  let fxPrev = null, fxSkip = false; // fxSkip: going back with Undo makes no sound
   function fxFind(t, kind) {
     if (t && t.seat != null) {
       const tok = document.querySelector('#pRing .tok[data-seat="' + t.seat + '"]');
@@ -44,8 +44,8 @@
   function fxDrive(SRC, key) {
     if (!FXL || !CFX) return;
     const cur = SRC ? CFX.snap(SRC.v, key) : null;
-    const list = cur ? CFX.events(fxPrev, cur) : [];
-    fxPrev = cur;
+    const list = cur && !fxSkip ? CFX.events(fxPrev, cur) : [];
+    fxPrev = cur; fxSkip = false;
     CFX.play(list, { FX: FXL, find: fxFind });
     // physical touches, timed with the sounds: a life token turns over to its black side when its
     // player dies, and your character token turns face up when the game is dealt
@@ -74,12 +74,18 @@
     if (a) FXL.shake(a);
   }
 
+  // ------------------------------------------------------------------ shared kits: My stats, coach, install
+  const CP = CT.profile || null, CC = CT.coach || null;
+  const PF = () => (window.Profile && CP ? window.Profile : null);
+  const CO = () => (window.COACH && CC ? window.COACH : null);
+  let tour = null;
+
   // ------------------------------------------------------------------ state
   function defNb(n) {
     return { n, names: NAMES.slice(0, n), claims: Array(n).fill(null), sure: Array(n).fill(null), me: 0, meMayBeDrunk: true, t: 1, deaths: [], noms: [], infos: [], notes: Array(n).fill(''), nextId: 1 };
   }
   function defSt() { return { n: 8, script: 'tb', chosen: [], gf: -1, seats: null, bluffs: [], view: 'setup', first: true }; }
-  let state = { v: 1, tab: 'town', townView: 'circle', nb: defNb(8), practice: null, st: defSt(), play: null, playSetup: { n: 8, level: 'hard' }, rolesScript: 'tb', rolesQ: '' };
+  let state = { v: 1, tab: 'play', townView: 'circle', nb: defNb(8), practice: null, st: defSt(), play: null, playSetup: { n: 8, level: 'hard' }, rolesScript: 'tb', rolesQ: '' };
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) { const s = JSON.parse(raw); if (s && s.v === 1 && s.nb) state = Object.assign(state, s); }
@@ -87,8 +93,18 @@
   function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* storage full or blocked */ } }
 
   // ------------------------------------------------------------------ solver worker
+  // WV: the worker's build stamp (same as its importScripts in js/worker.js)
+  const WV = 10;
   let worker = null;
-  try { worker = new Worker('js/worker.js?v=8'); } catch (e) { worker = null; }
+  try { worker = new Worker('js/worker.js?v=' + WV); } catch (e) { worker = null; }
+  // the home-screen app's offline copy: the page's own crawl never sees what the worker fetches, so ask
+  // the service worker to keep the worker and its scripts too (the odds and the computers need them)
+  try {
+    if (navigator.serviceWorker) navigator.serviceWorker.ready.then(r => {
+      const urls = ['js/worker.js?v=' + WV, 'js/roles.js?v=' + WV, 'js/solver.js?v=' + WV].map(u => new URL(u, location.href).href);
+      if (r.active) r.active.postMessage({ type: 'pwa:cache', urls });
+    }).catch(() => {});
+  } catch (e) { /* no service worker */ }
   const pending = {};
   let seq = 0;
   function runSolve(tag, input, cb) {
@@ -189,6 +205,7 @@
 
   // ------------------------------------------------------------------ top-level render
   function render() {
+    updUndo();
     document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === state.tab));
     document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + state.tab));
     $('#headMid').innerHTML = '';
@@ -361,6 +378,8 @@
     // open tabs don't both move the same game)
     if (document.hidden) { scheduleTick(1000); return; }
     if (!P || P.g.winner) return;
+    // the guided game: the computers wait while a lesson step is on screen
+    if (P.tutorial && tour && tour.active) { const c = tour.current(); if (c && c.hold && (!c.when || c.when())) { scheduleTick(400); return; } }
     const ctx = { humans: new Set([P.me]), mem: P.mem, rng: Math.random, levels: P.levels, oddsFor };
     const before = P.g;
     const r = B.step(P.g, ctx);
@@ -369,21 +388,51 @@
       // remember what my odds said about every seat at the end of each day
       if (before.stage === 'day' && r.state.stage !== 'day' && myOdds && !myOdds.error) P.hist.push({ t: before.t, p: myOdds.pDemon.slice() });
       P.g = r.state; save();
+      if (P.g.winner) recordPlay();
       if (state.tab === 'play') renderPlay();
       requestMine();
       scheduleTick(r.state.stage === 'night' ? 260 : 520);
     } else if (state.tab === 'play') renderPlay();
   }
-  function startPlay() {
+  // kind: 'normal' (the setup's players + level), 'daily' (today's deal, the same for everyone) or
+  // 'tutorial' (the guided first game: a fixed deal vs Easy computers, never counted)
+  function startPlay(kind) {
+    kind = kind || 'normal';
+    abandonPlay();
     const S = state.playSetup;
-    const n = S.n;
-    const me = Math.floor(Math.random() * n);
+    let n = S.n, level = S.level, me = Math.floor(Math.random() * n), seed = (Math.random() * 2 ** 31) | 0, roles;
+    if (kind === 'daily' && PF() && CP) {
+      n = CP.DAILY.n; level = CP.DAILY.level;
+      seed = PF().daily.seed() >>> 0; me = seed % n;
+    } else if (kind === 'tutorial' && CC) {
+      n = CC.ROLES.length; level = 'easy'; me = CC.ME; seed = CC.SEED; roles = CC.ROLES;
+    }
     const names = NAMES.slice(0, n).map((x, i) => (i === me ? 'You' : x));
-    const g = E.createGame({ n, names, kinds: names.map((x, i) => (i === me ? 'you' : 'bot')), seed: (Math.random() * 2 ** 31) | 0 });
-    state.play = { g, me, levels: Array(n).fill(S.level), mem: {}, sel: [], mode: null, hist: [], fxId: Date.now() };
+    const g = E.createGame({ n, names, kinds: names.map((x, i) => (i === me ? 'you' : 'bot')), seed, roles });
+    state.play = { g, me, level, levels: Array(n).fill(level), mem: {}, sel: [], mode: null, hist: [], fxId: Date.now(),
+      undo: [], helped: false, daily: kind === 'daily' ? PF().daily.date() : null, tutorial: kind === 'tutorial', recorded: false, moved: false };
     myOdds = null; myOddsKey = ''; pubCache = new Map();
-    save(); renderPlay(); requestMine(); scheduleTick(400);
+    if (CO()) CO().closeOffer();
+    if (tour) { if (kind === 'tutorial') { tour.reset(); tour.start(); } else tour.stop(); }
+    if (state.tab !== 'play') { histPush({ ct: 'tab', tab: 'play' }); state.tab = 'play'; }
+    save(); render(); requestMine(); scheduleTick(400);
   }
+  // My stats: one result per game vs computers, at the end, or as a loss when you leave a game you moved in
+  function recordPlay() {
+    const P = state.play, pf = PF();
+    if (!pf || !P || P.recorded || P.tutorial) return;
+    if (!P.g.winner && !P.moved) return;
+    P.recorded = true; save();
+    try {
+      const r = CP.result(P.g, P.me, { level: P.level || (P.levels && P.levels[0]), helped: P.helped, daily: !!P.daily });
+      if (r.daily && P.daily !== pf.daily.date()) r.daily = false; // a Daily finished after midnight counts as a normal game
+      pf.recordResult(r);
+    } catch (e) { /* stats never break the game */ }
+  }
+  function abandonPlay() { if (state.play && !state.play.g.winner) recordPlay(); }
+  const quitCounts = () => { const P = state.play; return !!(P && !P.g.winner && P.moved && !P.tutorial && !P.recorded && PF()); };
+  function canUndo() { const P = state.play; return !ON && state.tab === 'play' && !!P && !P.g.winner && !P.daily && !!P.undo && P.undo.length > 0; }
+  function updUndo() { const b = $('#undoBtn'); if (b) { b.hidden = !(!ON && state.tab === 'play' && state.play && !state.play.g.winner && !state.play.daily); b.disabled = !canUndo(); } }
   function myAct(a) {
     const S = src();
     if (S && S.online) {
@@ -394,12 +443,19 @@
     const P = state.play;
     const ns = E.apply(P.g, Object.assign({ seat: P.me }, a));
     if (ns.error) { toast(ns.error); fxError(); return; }
+    // Undo: the table just before my move (the computers' memory too); not in the Daily
+    if (!P.daily) { P.undo = (P.undo || []).concat([{ g: P.g, hist: P.hist.length, mem: JSON.parse(JSON.stringify(P.mem)), slayed: !!P.slayed }]).slice(-8); }
+    P.moved = true;
     if (P.g.stage === 'day' && ns.stage !== 'day' && myOdds && !myOdds.error) P.hist.push({ t: P.g.t, p: myOdds.pDemon.slice() });
     P.g = ns; P.sel = []; P.mode = null;
+    if (a.type === 'slay') P.slayed = true;
     save(); renderPlay(); requestMine(); scheduleTick(300);
+    if (P.g.winner) recordPlay();
   }
 
   function renderPlay() {
+    updUndo();
+    if (CO()) setTimeout(() => CO().update(), 0);
     const SRC = src();
     if (ON && (!SRC || !SRC.online)) { fxPrev = null; renderLobby(); return; }
     if (!SRC) {
@@ -411,6 +467,7 @@
         '<div class="row"><span class="grow">Players</span><div class="stepper"><button data-act="ps-n" data-d="-1">−</button><span>' + S.n + '</span><button data-act="ps-n" data-d="1">+</button></div></div>' +
         '<div class="row"><span class="grow">Computer level ' + helpBtn('level') + '</span>' + seg('ps-level', [['easy', 'Easy'], ['hard', 'Hard']], S.level) + '</div>' +
         '<button class="btn primary" data-act="play-start">Play vs computers</button>' +
+        kitRow() +
         '<h2 class="sec" style="margin-top:4px">Online ' + helpBtn('online') + '</h2>' +
         '<input type="text" id="onName" placeholder="Your name" maxlength="14" autocomplete="off" value="' + esc(S.name || '') + '">' +
         '<div class="row"><button class="btn grow" data-act="on-create">Create room</button></div>' +
@@ -459,7 +516,10 @@
       const d = g.roles.indexOf('imp');
       let hist = '';
       if (P.hist.length && d >= 0) hist = '<div class="small muted">' + (g.evil[me] ? 'Town odds on ' : 'Your odds on ') + esc(g.names[d]) + ' (the Demon) each day</div><div class="hist">' + P.hist.map(h => { const p = h.p[d] || 0; return '<div style="height:' + Math.max(4, p * 100) + '%;background:' + heat(p) + '"><span>' + pct(p) + '</span></div>'; }).join('') + '</div>';
-      act = '<div class="banner ' + (g.winner === 'good' ? 'good' : 'evil') + '"><b class="grow">' + (g.winner === (g.evil[me] ? 'evil' : 'good') ? 'You win!' : 'You lose.') + '</b><button class="btn small" data-act="' + (SRC.online ? 'on-leave' : 'play-new') + '">' + (SRC.online ? 'Leave room' : 'New game') + '</button></div>' + hist;
+      act = '<div class="banner ' + (g.winner === 'good' ? 'good' : 'evil') + '"><b class="grow">' + (g.winner === (g.evil[me] ? 'evil' : 'good') ? 'You win!' : 'You lose.') + '</b>' +
+        (g.grim ? '<button class="btn small" data-act="play-story">Story</button>' : '') +
+        (!SRC.online && PF() && !P.tutorial ? '<button class="btn small pf-open" data-act="stats" aria-label="My stats">' + PF().avatarSVG(PF().avatar, 18) + '</button>' : '') +
+        '<button class="btn small" data-act="' + (SRC.online ? 'on-leave' : 'play-new') + '">' + (SRC.online ? 'Leave room' : 'New game') + '</button></div>' + hist;
     } else if (g.stage === 'night') {
       if (v.pending) {
         const p = v.pending;
@@ -544,6 +604,18 @@
     if (state.tab === 'play') renderPlay();
   }
   function onName() { const el = $('#onName'); const n = (el ? el.value : state.playSetup.name || '').trim().slice(0, 14); state.playSetup.name = n; save(); return n; }
+  // My stats, today's Daily game and the rules, under Play vs computers
+  function kitRow() {
+    const pf = PF();
+    let h = '';
+    if (pf) {
+      let done = false; try { done = pf.daily.played(); } catch (e) { /* ignore */ }
+      h += '<button class="btn pf-open" data-act="stats">' + pf.avatarSVG(pf.avatar, 22) + 'My stats</button>' +
+        '<button class="btn" data-act="daily"' + (done ? ' aria-disabled="true"' : '') + '>' + (done ? 'Daily done' : 'Daily game') + '</button>';
+    }
+    if (CO() && CC) h += '<button class="btn" data-act="rules">Rules</button>';
+    return h ? '<div class="row kitrow">' + h + '</div>' : '';
+  }
   function renderLobby() {
     $('#v-play').classList.remove('is-night');
     const s = ON && ON.snap;
@@ -591,6 +663,37 @@
   }
   window.addEventListener('ct-online-ready', () => { onResume(); });
   if (onLib()) onResume();
+
+  // ------------------------------------------------------------------ the story of the game (after Game over)
+  // What the Storyteller saw: everyone's real character, then night by night who was poisoned, protected
+  // and attacked, which info was true or false, and day by day the nominations and executions.
+  function storyHTML(v) {
+    const N = i => '<b>' + esc(v.names[i]) + '</b>';
+    const R = i => '<span class="c-' + rtype(v.roles[i]) + '">' + rname(v.roles[i]) + '</span>';
+    let h = '<div class="story-cast">' + v.roles.map((r, i) => '<span class="sc">' + ctok(r) + '<span>' + N(i) + '<br>' + R(i) +
+      (v.thinks && v.thinks[i] && v.thinks[i] !== r && r === 'drunk' ? '<span class="tiny muted"> (thought ' + rname(v.thinks[i]) + ')</span>' : '') + '</span></span>').join('') + '</div>';
+    const by = {};
+    const add = (t, line) => { (by[t] = by[t] || []).push(line); };
+    for (const x of v.grim || []) {
+      if (x.kind === 'poison') add(x.t, N(x.seat) + ' poisoned ' + N(x.target) + '.');
+      else if (x.kind === 'protect') add(x.t, N(x.seat) + ' protected ' + N(x.target) + (x.ok ? '.' : ' (no effect: ' + (v.roles[x.seat] === 'drunk' ? 'the Drunk' : 'poisoned') + ').'));
+      else if (x.kind === 'attack') {
+        const r = { killed: x.hit !== x.target ? 'it bounced off the Mayor to ' + N(x.hit) + ', who died.' : N(x.hit) + ' died.', monk: N(x.hit) + ' was safe (Monk).', soldier: N(x.hit) + ' was safe (Soldier).', poisoned: 'no effect (poisoned).', dead: 'they were already dead.', self: 'the Imp killed themself.' }[x.res] || '';
+        add(x.t, N(x.seat) + ' attacked ' + N(x.target) + ': ' + r);
+      } else if (x.kind === 'star') add(x.t, N(x.seat) + ' became the Imp' + (x.how === 'pass' ? ' (the star was passed).' : ' (Scarlet Woman).'));
+      else if (x.kind === 'info') add(x.t, '<span class="' + (x.ok ? '' : 'c-D') + '">' + N(x.seat) + ' (' + rname(x.role) + '): ' + esc(x.text) + (x.ok ? '' : ' <b>False</b>: ' + (x.drunk ? 'the Drunk.' : 'poisoned.')) + '</span>');
+    }
+    for (const p of v.pub) {
+      if (p.kind === 'tally') add(p.t, esc(v.names[p.on]) + ': ' + p.yes + ' vote' + (p.yes === 1 ? '' : 's') + (p.voters && p.voters.length ? ' <span class="muted">(' + p.voters.map(i => esc(v.names[i])).join(', ') + ')</span>' : '') + '.');
+      else if (p.kind === 'exec') add(p.t, N(p.seat) + ', the ' + R(p.seat) + ', was executed' + (p.virgin ? ' (Virgin).' : '.'));
+      else if (p.kind === 'slaydeath') add(p.t, N(p.seat) + ', the ' + R(p.seat) + ', was slain.');
+      else if (p.kind === 'slay') add(p.t, N(p.by) + ' tried to slay ' + N(p.on) + '.');
+      else if (p.kind === 'end') add(p.t, '<b>' + esc(p.text) + '</b>');
+    }
+    const ts = Object.keys(by).map(Number).sort((a, b) => a - b);
+    for (const t of ts) h += '<div class="phase-h">' + phaseLabel(t) + '</div><div class="list story">' + by[t].map(l => '<div class="li small">' + l + '</div>').join('') + '</div>';
+    return h;
+  }
 
   function myUnshared(v) {
     const me = v.me.seat;
@@ -905,7 +1008,8 @@
         let h = '';
         // a game in progress can be left from here (it otherwise only ends at Game over)
         if (ON && ON.snap && ON.snap.pub && !ON.snap.pub.winner) h += '<h2 class="sec">Play</h2><button class="btn danger" data-act="set-leave">Leave room</button>';
-        else if (!ON && state.play && !state.play.g.winner) h += '<h2 class="sec">Play</h2><button class="btn danger" data-act="play-quit">Quit this game</button>';
+        else if (!ON && state.play && !state.play.g.winner) h += '<h2 class="sec">Play</h2><button class="btn danger" data-act="play-quit">Quit this game</button>' + (quitCounts() ? '<div class="tiny muted">Counts as a loss in My stats.</div>' : '');
+        if (CO() && CC) h += '<h2 class="sec">Rules</h2><div class="row"><button class="btn grow" data-act="rules">Full rules</button><button class="btn grow" data-act="guided">Guided game</button></div>';
         h += '<h2 class="sec">Notebook</h2>';
         h += '<div class="row"><span class="grow">Players</span><div class="stepper"><button data-act="nb-n" data-d="-1">−</button><span>' + nb.n + '</span><button data-act="nb-n" data-d="1">+</button></div></div>';
         h += fldDiv('You are', seatChips('me', nb.me));
@@ -1074,12 +1178,39 @@
     },
     'practice-reveal'() { const P = state.practice; const d = P.truth.roles.indexOf('imp'); P.oddsAtReveal = nbOdds && !nbOdds.error ? nbOdds.pDemon[d] : 0; P.revealed = true; save(); render(); },
     'practice-exit'() { const P = state.practice; state.nb = P.saved || defNb(8); state.practice = null; save(); render(); },
+    // kits: My stats, Daily, rules, guided game, Undo, the story
+    stats() { const pf = PF(); if (pf) { dismissSheet(); pf.openPanel(); } },
+    daily() {
+      const pf = PF(); if (!pf) return;
+      if (pf.isOpen()) pf.closePanel();
+      let done = false; try { done = pf.daily.played(); } catch (e) { /* ignore */ }
+      if (done) { toast('Today\'s Daily is done. A new one comes tomorrow.'); return; }
+      if (ON) { toast('Leave the room first.'); return; }
+      dismissSheet(); startPlay('daily');
+    },
+    rules() { const co = CO(); if (!co) return; dismissSheet(); co.rules(CC.rules()); },
+    guided() { if (ON) { toast('Leave the room first.'); return; } dismissSheet(); startPlay('tutorial'); },
+    'play-undo'() {
+      const P = state.play;
+      if (!canUndo()) return;
+      const u = P.undo.pop();
+      P.g = u.g; P.hist.length = Math.min(P.hist.length, u.hist); P.mem = u.mem || P.mem; P.slayed = u.slayed;
+      P.sel = []; P.mode = null; P.helped = true; fxSkip = true;
+      save(); renderPlay(); requestMine(); scheduleTick(700);
+      toast('Took back your last move.');
+    },
+    'play-story'() {
+      const S = src(); if (!S || !S.v.winner) return;
+      const v = S.v;
+      openSheet({ title: 'The story', body: () => storyHTML(v), foot: () => '<button class="btn" data-act="sheet-close">Close</button>' });
+    },
     // play
-    'ps-n'(d) { state.playSetup.n = Math.max(5, Math.min(12, state.playSetup.n + (+d.d))); save(); renderPlay(); },
+    'ps-n'(d) { state.playSetup.n = Math.max(5, Math.min(15, state.playSetup.n + (+d.d))); save(); renderPlay(); },
     'ps-level'(d) { state.playSetup.level = d.v; save(); renderPlay(); },
-    'play-start'() { startPlay(); },
+    'play-start'() { startPlay('normal'); },
     'play-new'() { state.play = null; clearTimeout(playTimer); save(); renderPlay(); },
     'play-quit'() {
+      abandonPlay();
       const old = state.play;
       state.play = null; clearTimeout(playTimer); dismissSheet(); save(); render();
       toast('Game ended.', () => { state.play = old; save(); render(); requestMine(); scheduleTick(400); });
@@ -1100,7 +1231,7 @@
         renderPlay(); return;
       }
       if (P.mode === 'nominate') { myAct({ type: 'nominate', target: i }); return; }
-      if (P.mode === 'slay') { P.slayed = true; myAct({ type: 'slay', target: i }); return; }
+      if (P.mode === 'slay') { if (S.online) P.slayed = true; myAct({ type: 'slay', target: i }); return; }
     },
     'play-choose'() { const P = src().ui; myAct({ type: 'choose', picks: P.sel.slice() }); },
     'play-vote'(d) { myAct({ type: 'vote', yes: d.yes === '1' }); },
@@ -1157,6 +1288,7 @@
   });
   document.getElementById('tabs').addEventListener('click', e => { const b = e.target.closest('button[data-tab]'); if (b) H.tab(b.dataset); });
   $('#gear').addEventListener('click', settingsSheet);
+  $('#undoBtn').addEventListener('click', () => H['play-undo']());
   document.addEventListener('change', e => {
     const t = e.target;
     if (t.id === 'seatName' && seatOpen >= 0) { state.nb.names[seatOpen] = t.value.trim().slice(0, 14) || NAMES[seatOpen]; save(); render(); }
@@ -1175,6 +1307,9 @@
   // Back button: closes the open sheet (or its help page) first, else returns to the previous tab
   window.addEventListener('popstate', e => {
     if (skipPop) { skipPop--; return; }
+    const co = CO();
+    if (co && co.rulesOpen()) { co.closeRules(); return; }
+    if (PF() && PF().isOpen()) { PF().closePanel(); return; }
     if (sheet) {
       sheetDepth = Math.max(0, sheetDepth - 1);
       if (sheet.prev) { sheet = sheet.prev; $('#sheetRoot').innerHTML = ''; drawSheet(); } else closeSheet();
@@ -1197,6 +1332,39 @@
   });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && state.play && !state.play.g.winner && !ON) scheduleTick(300); });
 
+  // ------------------------------------------------------------------ kits at start-up
+  // games saved before My stats existed are never counted
+  if (state.play && state.play.recorded === undefined) { state.play.recorded = true; state.play.undo = []; }
+  if (CP && window.Profile) {
+    CP.init(() => H.daily());
+    window.Profile.onChange(what => { if (what === 'me' || what === 'result') { if (state.tab === 'play' && !src()) renderPlay(); } });
+  }
+  if (CO()) {
+    tour = CO().tour({
+      id: CC.ID,
+      steps: CC.steps({ v: () => (state.play && state.play.tutorial && !ON ? E.view(state.play.g, state.play.me) : null), ui: () => state.play }),
+      pauseIf: () => state.tab !== 'play' || !!ON || !(state.play && state.play.tutorial) || !!sheet || CO().rulesOpen() || !!(PF() && PF().isOpen()),
+    });
+  }
+  // offered once, on the Play setup screen, to someone who has never played here
+  function offerCoach() {
+    const co = CO();
+    if (!co || ON || state.tab !== 'play' || state.play) return;
+    co.offer({ id: CC.ID, title: 'New to Clocktower?', text: 'Play one guided game as the Empath against Easy computers.', yes: 'Teach me', no: 'No thanks', onYes: () => H.guided() });
+  }
+  // a reload is harmless only on a quiet screen: no room, nothing open, no typing, no game in progress
+  if (window.PWA) window.PWA.safeToReload = () => {
+    if (ON || sheet || (CO() && CO().rulesOpen()) || (PF() && PF().isOpen())) return false;
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return false;
+    // a game in progress is saved and picks up after a reload, so only the Play screen itself is busy
+    if (state.play && !state.play.g.winner && state.tab === 'play') return false;
+    return true;
+  };
+  window.__ct = { state: () => state, src, H, tour: () => tour, E };
+
   render();
   if (state.play && !state.play.g.winner) { requestMine(); scheduleTick(500); }
+  if (state.play && state.play.tutorial && !state.play.g.winner && tour && tour.saved()) tour.resume();
+  setTimeout(offerCoach, 600);
 })();

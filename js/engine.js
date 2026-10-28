@@ -44,6 +44,8 @@
       slayerUsed: false, virginUsed: false, butlerMaster: -1,
       day: null, claims: Array(n).fill(null), shared: [], pub: [], priv: Array.from({ length: n }, () => []),
       deaths: [], winner: null, winReason: '', version: 0,
+      // the Storyteller's own record (who was poisoned, protected, attacked; which info was false), shown at game over
+      grim: [],
     };
     for (let i = 0; i < n; i++) { if (!s.names[i]) s.names[i] = 'Seat ' + (i + 1); if (!s.kinds[i]) s.kinds[i] = 'bot'; }
     let roles = opts.roles;
@@ -80,6 +82,8 @@
   // "Ben nominates" / "You nominate": the player's own seat may be named "You"
   function who(s, i, he, you) { return s.names[i] + ' ' + (s.names[i] === 'You' ? you : he); }
   function msg(s, seat, kind, text, data) { s.priv[seat].push({ t: s.t, kind, text, data: data || null }); }
+  // games saved before the record existed simply start it now
+  function grim(s, o) { (s.grim || (s.grim = [])).push(Object.assign({ t: s.t }, o)); }
   const aliveCount = s => s.alive.filter(Boolean).length;
   const seatsWith = (s, role) => s.roles.map((r, i) => (r === role ? i : -1)).filter(i => i >= 0);
   const demonSeat = s => s.roles.indexOf('imp');
@@ -122,12 +126,14 @@
       const sw = seatsWith(s, 'scarletwoman').find(i => s.alive[i] && sober(s, i));
       if (sw != null && before >= 5) {
         s.roles[sw] = 'imp'; s.thinks[sw] = 'imp';
+        grim(s, { kind: 'star', seat: sw, from: seat, how: 'scarletwoman' });
         msg(s, sw, 'role', 'The Demon died. You are now the Imp.', { role: 'imp' });
       } else if (how === 'self') {
         const mins = [...Array(s.n).keys()].filter(i => s.alive[i] && typeOf(s.roles[i]) === 'M');
         if (mins.length) {
           const m = pick(s, mins);
           s.roles[m] = 'imp'; s.thinks[m] = 'imp';
+          grim(s, { kind: 'star', seat: m, from: seat, how: 'pass' });
           msg(s, m, 'role', 'The Imp passed the star to you. You are now the Imp.', { role: 'imp' });
         }
       }
@@ -261,6 +267,7 @@
     } else return;
     data.t = s.t;
     msg(s, seat, 'info', text, data);
+    if (role !== 'spy') grim(s, { kind: 'info', seat, role, ok, drunk: s.roles[seat] === 'drunk', text });
   }
 
   function resolveChoice(s, p, picks) {
@@ -269,10 +276,12 @@
     switch (p.role) {
       case 'poisoner':
         s.poisoned = picks[0]; s.poisonedT = s.t;
+        grim(s, { kind: 'poison', seat, target: picks[0] });
         msg(s, seat, 'done', 'You poisoned ' + s.names[picks[0]] + '.');
         break;
       case 'monk':
         if (ok) s.monk = picks[0];
+        grim(s, { kind: 'protect', seat, target: picks[0], ok });
         msg(s, seat, 'done', 'You protect ' + s.names[picks[0]] + ' tonight.');
         break;
       case 'butler':
@@ -282,15 +291,18 @@
       case 'imp': {
         let x = picks[0];
         msg(s, seat, 'done', 'You attacked ' + s.names[x] + '.');
-        if (!ok || !s.alive[x]) break;
-        if (x === seat) { s.killedTonight.push(x); kill(s, x, 'self'); break; }
+        const att = r => grim(s, Object.assign({ kind: 'attack', seat, target: picks[0] }, r));
+        if (!ok) { att({ res: 'poisoned' }); break; }
+        if (!s.alive[x]) { att({ res: 'dead' }); break; }
+        if (x === seat) { att({ res: 'self' }); s.killedTonight.push(x); kill(s, x, 'self'); break; }
         // a Mayor the Monk protects doesn't die, so nobody dies in their place
         if (s.roles[x] === 'mayor' && sober(s, x) && x !== s.monk && rnd(s) < 0.5) {
           const alt = [...Array(s.n).keys()].filter(i => s.alive[i] && i !== x && i !== seat);
           if (alt.length) x = pick(s, alt);
         }
-        if (x === s.monk) break;
-        if (s.roles[x] === 'soldier' && sober(s, x)) break;
+        if (x === s.monk) { att({ res: 'monk', hit: x }); break; }
+        if (s.roles[x] === 'soldier' && sober(s, x)) { att({ res: 'soldier', hit: x }); break; }
+        att({ res: 'killed', hit: x });
         s.killedTonight.push(x); kill(s, x, 'night');
         break;
       }
@@ -472,6 +484,7 @@
     };
     if (seat === 'st' || s.winner) {
       v.roles = s.roles; v.evil = s.evil; v.thinks = s.thinks; v.redHerring = s.redHerring; v.bluffs = s.bluffs; v.poisoned = s.poisoned;
+      v.grim = s.grim || [];
     }
     if (seat === 'st') { v.priv = s.priv; v.pending = s.pending; }
     else if (typeof seat === 'number' && seat >= 0) {
