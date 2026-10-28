@@ -5,7 +5,7 @@ Read this file, then CLAUDE.md, then `docs/rules-check.md` and `docs/ideas.md`. 
 Sounds/animations: `js/fx.js` (byte copy of `../_fx/fx.js`, never edit; re-copy), `js/ctfx.js` (game events → sounds/animations, pure `events(prev, cur)`).
 Table look: `css/table.css` + `js/table.js` (byte copies of `../_table/`, never edit; re-copy). The game's own table styling is in `styles.css` ("the seat circle" and "Play: your place at the table" sections).
 Kits (copies, never edit; re-copy): `js/coach.js`+`css/coach.css` (_coach 1.0.0), `js/profile.js`+`css/profile.css` (_profile 1.1.0), `js/pwa.js`+`sw.js`+`tools/pwa-check.mjs`+`tools/make-icons.mjs` (_pwa 1.2.0). Game side: `js/ctcoach.js` (guided game + rules sheet), `js/ctprofile.js` (levels, achievements, Daily, result).
-Last updated: 2026-10-27 (improvement pass: guided game, rules sheet, My stats + Daily, Undo, story, offline install, 5–15 players, art + key moments; build `?v=12`).
+Last updated: 2026-10-27 (odds speed-up: solver 3–6x faster with identical numbers, worker runs jobs in steps and drops stale ones, badges fade while odds are working; build `?v=13`).
 
 ## Goal right now
 Tim: "could you also explore blood on the clocktower?" Phase 2: "build regular play online with a computer or other online players for all the games … that match exactly the play of the in-person game … Really work on the webdesign … art … make sure that everything works properlly without errors … get everything right like rules … specific numbers."
@@ -17,6 +17,7 @@ Tim: "could you also explore blood on the clocktower?" Phase 2: "build regular p
 | Odds tab (Demon % / evil %, likely teams, maybe-Drunk) | Done |
 | Play: Trouble Brewing vs computers (5–15 players since 10-27, Easy/Hard) | Done |
 | Improvement pass 10-27: guided first game (Empath, 7 Easy), Rules sheet, My stats + achievements + Daily (Hard, 8 players, no Undo), Undo vs computers (game becomes "with help", unrated), "Story" at game over (true roles + the Storyteller's night record, false info marked), install + offline, hooded unclaimed tokens, team-tinted faces, town/fog/moon behind the circle, execution + Demon-reveal moments | Done, live at fd5470b. Shots in the manager's scratchpad `improve/clocktower/` (tut/, ui/, art/) |
+| Odds speed (10-27): same line-ups, no per-line-up allocation, red-herring/Drunk/Minion-line-up results reused where no reading can tell them apart; `solver.start()` steps (32 teams each); worker steps jobs and a newer job with the same tag replaces an older one; no-worker fallback runs in 12 ms slices; `.odds-busy` on `<html>` fades badges to 50% when odds take over 250 ms | Done. Worst real 15-player record: laptop Chrome 3.6 s → 0.52 s, Chrome 4× throttle 15.6 s → 2.9 s; 13 players 8.4 s → 2.2 s (4×). Longest main-thread step 56 ms (4×). `tests/solver-match.test.js`: 3977 inputs identical to the old solver (≤1.4e-12) with CT_FULL=1 |
 | Play online (shared `_online` layer, gameId `clocktower`) | Done. Two-browser game (WebKit + Chromium) played to "Game over" against the live Firebase project on 10-19 |
 | Practice puzzles (easy/medium/hard) with Reveal | Done |
 | Grimoire: setup counts (Baron/Godfather/Fang Gu/Vigormortis), night order, grimoire circle with reminders | Done, all 3 scripts |
@@ -74,7 +75,9 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 - Phone-first dark look with the Hub tokens. No page scroll on main screens. Labels 1–3 words, with explanations behind a "?". $0.
 
 ## Traps
-- **Build stamp (10-27):** all `?v=` in index.html, pwa.js `data-version`, `WV` in app.js and the `importScripts` stamps in `js/worker.js` must move together (now 12). The online.js stamp is separate (next line).
+- **Build stamp (10-27):** all `?v=` in index.html, pwa.js `data-version`, `WV` in app.js and the `importScripts` stamps in `js/worker.js` must move together (now 13).
+- **Solver changes:** `tests/solver-ref.js` is a frozen copy of the build-12 solver; `node tests/solver-match.test.js` (~75 s; `CT_FULL=1` ~10 min) must stay green after any solver edit, unless the odds model is meant to change (then refresh the ref copy on purpose and say so). The memo key in `start()` (Poisoner seat, Outsider count, Spy seat where `spySeen`, SW seat when deaths, Minion of `named` seats) must grow if a new reading looks at something else. Run it in the suite with the others.
+- `renderPlay` itself (not the odds) is the biggest main-thread cost at 15 players: Chrome 4× throttle showed 200–450 ms tasks late in a game (whole ring + feed re-render). Not touched in the odds pass. The online.js stamp is separate (next line).
 - `state.grim` (engine) is the Storyteller's record (poison, protect, attack + result, info with ok/drunk, star pass). `view()` shows it only to `st` or after game over. Never add `rnd()` calls around it (seeded replays).
 - Guided game: steps with `hold: true` make `tick()` wait, but only while `tour.active` and the step's `when()` is true (`current()` still returns the last step after the tour ends). Night 1 resolves inside createGame, so the "Night" step comes after "End the day".
 - `window.__ct = { state, src, H, tour, E }` is a test hook (tut/ui/pwa-check scripts drive the game through `H`). Keep it.
@@ -83,7 +86,7 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 - Recording: `recordPlay()` on win, `abandonPlay()` on New game / Quit (counts as a loss only after your first move, `P.moved`); tutorial never counts; legacy saves load with `recorded = true`.
 - **online.js cache stamp (2026-10-27):** every import of `js/online.js` uses `?v=a3d0418b`, the `_online` content stamp. After a re-copy: put the new stamp from `node ../_online/tools/stamp.mjs` there, bump the importing file's `?v=` (and pwa.js `data-version`), then `node ../_online/tools/stamp.mjs --check .` must say OK.
 - `js/online.js` is a copy. Re-copy it from `../_online/online.js`; never edit it.
-- The solver can take 1–3 s at 15 players, and runs in a Web Worker. The speed test fails when the machine is busy: use `CT_SLOW=1`.
+- The solver takes up to ~0.5 s at 15 players on the laptop (was 1–4 s), and runs in a Web Worker. The speed tests fail when the machine is busy: use `CT_SLOW=1`.
 - `.view` must not animate (phone-view screenshots caught a blank frame, and Tim's rule is "nothing jumps").
 - The Play view updates its parts (`#pCard`, `#pRing`, `#pAct`, `#feed`) separately, so a tap isn't lost to a re-render. Keep that.
 - Time encoding: night k = 2k−1, day k = 2k.
@@ -111,7 +114,7 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 - 10-27 (Tim's calls, plainest default taken): new visitors land on Play; odds badges stay on in rated games; ratings Easy 1200 / Hard 1420 (from measured fair share 78%); computer strength unchanged (Hard clearly above Easy); achievement names; "Story" label.
 
 ## NOT verified
-- 10-27 pass: solver pauses at 13–15 players on a phone (laptop node: average 0.6 s / 1.2 s, worst 1.7 s / 4.3 s per odds update at 13 / 15). Big-moment animations seen only as stills. Hood icon read as "unknown player" only by me. The Demon-reveal and execution moments were caught in screenshots at 393/320; at landscape/1280/1440 the scripted execution didn't land in the capture window.
+- Odds speed on a real iPhone: only estimated with Chrome 4× CPU throttle (worst 15-player odds job ~2.9 s, off the main thread; the computers wait for it). Whether CDP throttling also slows the worker thread is unclear, so in-game worker timings were not used as the phone figure. The 50% badge fade was seen in still shots only. Big-moment animations seen only as stills. Hood icon read as "unknown player" only by me. The Demon-reveal and execution moments were caught in screenshots at 393/320; at landscape/1280/1440 the scripted execution didn't land in the capture window.
 - On a real iPhone (only WebKit at 393 px). Solver time on an iPhone at 12+ players.
 - BMR/S&V wording of abilities against the official almanac (order checked, text is ours).
 - Online with 3+ people, host dropping mid-game, rejoin by name. An AFK online player stalls the day (not fixed: needs the shared layer).

@@ -124,7 +124,7 @@
 
   // ------------------------------------------------------------------ solver worker
   // WV: the worker's build stamp (same as its importScripts in js/worker.js)
-  const WV = 12;
+  const WV = 13;
   let worker = null;
   try { worker = new Worker('js/worker.js?v=' + WV); } catch (e) { worker = null; }
   // the home-screen app's offline copy: the page's own crawl never sees what the worker fetches, so ask
@@ -141,13 +141,38 @@
     const id = ++seq;
     pending[tag] = { id, cb, input };
     if (worker) worker.postMessage({ id, tag, input });
-    else setTimeout(() => done({ id, tag, r: SV.solve(input) }), 0);
+    else solveHere(tag, id, input);
+    oddsBusy();
+  }
+  // No worker: the same job in small steps on the page, ~12 ms at a time, so taps still get through.
+  // A newer job with the same tag stops an older one.
+  function solveHere(tag, id, input) {
+    let job;
+    try { job = SV.start(input); } catch (e) { setTimeout(() => done({ id, tag, r: { error: 'Solver error: ' + e.message, pDemon: [], pEvil: [], pDrunk: [], pMinion: [], topTeams: [] } }), 0); return; }
+    const slice = () => {
+      const p = pending[tag];
+      if (!p || p.id !== id) return;
+      const t0 = Date.now();
+      let more = true;
+      while (more && Date.now() - t0 < 12) more = job.step();
+      if (more) setTimeout(slice, 0); else done({ id, tag, r: job.result() });
+    };
+    setTimeout(slice, 0);
   }
   function done(d) {
     const p = pending[d.tag];
     if (!p || p.id !== d.id) return;
     delete pending[d.tag];
     p.cb(d.r);
+    oddsBusy();
+  }
+  // odds that take a moment: the badges fade a little until the new numbers land (nothing moves)
+  let busyTimer = null;
+  function oddsBusy() {
+    const busy = !!(pending.mine || pending.nb);
+    clearTimeout(busyTimer);
+    if (!busy) { document.documentElement.classList.remove('odds-busy'); return; }
+    busyTimer = setTimeout(() => { if (pending.mine || pending.nb) document.documentElement.classList.add('odds-busy'); }, 250);
   }
   if (worker) {
     worker.onmessage = e => done(e.data);
@@ -155,7 +180,7 @@
     // that was waiting on odds keeps going
     worker.onerror = () => {
       worker = null;
-      Object.keys(pending).forEach(tag => { const p = pending[tag]; setTimeout(() => done({ id: p.id, tag, r: SV.solve(p.input) }), 0); });
+      Object.keys(pending).forEach(tag => { const p = pending[tag]; solveHere(tag, p.id, p.input); });
     };
   }
 

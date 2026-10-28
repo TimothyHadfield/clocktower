@@ -153,6 +153,9 @@ h2.sec { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 
    side. Mirrored on the left half of the circle (.lft). */
 /* the seat at the far right keeps its badge on the inner side, so it never runs off the screen */
 .ring:not(.crowd) .tok.rgt .badge { left: auto; right: -8px; }
+/* odds still being worked out (more than a moment): the badges fade a little; nothing moves */
+.tok .badge { transition: opacity .25s; }
+.odds-busy .tok .badge { opacity: .5; }
 .ring.crowd .tok .badge { top: 50%; left: calc(100% - 7px); padding: 0 .3em; font-size: clamp(11px, 1.85cqmin, 13px); }
 .ring.crowd .tok.lft .badge { left: auto; right: calc(100% - 7px); }
 .ring.crowd .tok .hand { top: -10%; right: auto; left: -14%; width: 44%; min-width: 13px; }
