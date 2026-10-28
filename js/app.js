@@ -123,18 +123,11 @@
   function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* storage full or blocked */ } }
 
   // ------------------------------------------------------------------ solver worker
-  // WV: the worker's build stamp (same as its importScripts in js/worker.js)
-  const WV = 13;
+  // WV: the worker's build stamp (same as its importScripts in js/worker.js and data-extra on the pwa.js tag,
+  // which keeps the worker and its scripts in the home-screen app's offline copy)
+  const WV = 14;
   let worker = null;
   try { worker = new Worker('js/worker.js?v=' + WV); } catch (e) { worker = null; }
-  // the home-screen app's offline copy: the page's own crawl never sees what the worker fetches, so ask
-  // the service worker to keep the worker and its scripts too (the odds and the computers need them)
-  try {
-    if (navigator.serviceWorker) navigator.serviceWorker.ready.then(r => {
-      const urls = ['js/worker.js?v=' + WV, 'js/roles.js?v=' + WV, 'js/solver.js?v=' + WV].map(u => new URL(u, location.href).href);
-      if (r.active) r.active.postMessage({ type: 'pwa:cache', urls });
-    }).catch(() => {});
-  } catch (e) { /* no service worker */ }
   const pending = {};
   let seq = 0;
   function runSolve(tag, input, cb) {

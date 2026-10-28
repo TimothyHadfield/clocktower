@@ -4,8 +4,8 @@
 Read this file, then CLAUDE.md, then `docs/rules-check.md` and `docs/ideas.md`. Code map: `js/roles.js` (72 roles, counts, night order), `js/solver.js` (line-up enumerator → Demon/evil odds), `js/engine.js` (Trouble Brewing rules + computer Storyteller), `js/bots.js` (computer players), `js/ctonline.js` (game object for the shared online layer), `js/app.js` (all UI), `js/art.js` (icons), `js/worker.js` (solver off the main thread).
 Sounds/animations: `js/fx.js` (byte copy of `../_fx/fx.js`, never edit; re-copy), `js/ctfx.js` (game events → sounds/animations, pure `events(prev, cur)`).
 Table look: `css/table.css` + `js/table.js` (byte copies of `../_table/`, never edit; re-copy). The game's own table styling is in `styles.css` ("the seat circle" and "Play: your place at the table" sections).
-Kits (copies, never edit; re-copy): `js/coach.js`+`css/coach.css` (_coach 1.0.0), `js/profile.js`+`css/profile.css` (_profile 1.1.0), `js/pwa.js`+`sw.js`+`tools/pwa-check.mjs`+`tools/make-icons.mjs` (_pwa 1.2.0). Game side: `js/ctcoach.js` (guided game + rules sheet), `js/ctprofile.js` (levels, achievements, Daily, result).
-Last updated: 2026-10-27 (odds speed-up: solver 3–6x faster with identical numbers, worker runs jobs in steps and drops stale ones, badges fade while odds are working; build `?v=13`).
+Kits (copies, never edit; re-copy): `js/coach.js`+`css/coach.css` (_coach 1.1.0), `js/profile.js`+`css/profile.css` (_profile 1.1.0), `js/pwa.js`+`sw.js`+`tools/pwa-check.mjs`+`tools/make-icons.mjs` (_pwa 1.3.0). Game side: `js/ctcoach.js` (guided game + rules sheet), `js/ctprofile.js` (levels, achievements, Daily, result).
+Last updated: 2026-10-28 (kit sweep: _coach 1.1.0, _pwa 1.3.0; the odds worker + its scripts are kept offline through `data-extra` on the pwa.js tag, the old `pwa:cache` message in app.js is gone; build `?v=14`; pwa-check 18/18 WebKit).
 
 ## Goal right now
 Tim: "could you also explore blood on the clocktower?" Phase 2: "build regular play online with a computer or other online players for all the games … that match exactly the play of the in-person game … Really work on the webdesign … art … make sure that everything works properlly without errors … get everything right like rules … specific numbers."
@@ -75,7 +75,7 @@ Computer and online players' moves make the same sounds (driven by view diffs in
 - Phone-first dark look with the Hub tokens. No page scroll on main screens. Labels 1–3 words, with explanations behind a "?". $0.
 
 ## Traps
-- **Build stamp (10-27):** all `?v=` in index.html, pwa.js `data-version`, `WV` in app.js and the `importScripts` stamps in `js/worker.js` must move together (now 13).
+- **Build stamp (10-27):** all `?v=` in index.html, pwa.js `data-version`, `WV` in app.js and the `importScripts` stamps in `js/worker.js` and the three `?v=` in the pwa.js tag's `data-extra` (worker.js, roles.js, solver.js: the odds worker's offline copy) must move together (now 14).
 - **Solver changes:** `tests/solver-ref.js` is a frozen copy of the build-12 solver; `node tests/solver-match.test.js` (~75 s; `CT_FULL=1` ~10 min) must stay green after any solver edit, unless the odds model is meant to change (then refresh the ref copy on purpose and say so). The memo key in `start()` (Poisoner seat, Outsider count, Spy seat where `spySeen`, SW seat when deaths, Minion of `named` seats) must grow if a new reading looks at something else. Run it in the suite with the others.
 - `renderPlay` itself (not the odds) is the biggest main-thread cost at 15 players: Chrome 4× throttle showed 200–450 ms tasks late in a game (whole ring + feed re-render). Not touched in the odds pass. The online.js stamp is separate (next line).
 - `state.grim` (engine) is the Storyteller's record (poison, protect, attack + result, info with ok/drunk, star pass). `view()` shows it only to `st` or after game over. Never add `rnd()` calls around it (seeded replays).
